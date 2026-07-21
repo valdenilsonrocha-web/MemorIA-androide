@@ -1,5 +1,11 @@
 # MemorIA Mobile 📱💊
 
+![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0.20-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
+![minSdk](https://img.shields.io/badge/minSdk-26-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 App **Android nativo** (Kotlin + Jetpack Compose) para o [MemorIA](../MemorIA) —
 lembrete de medicamentos para idosos. Consome **o mesmo backend** que o frontend
 web (PWA), replicando as funções centrais, com **um diferencial: os avisos vão
@@ -126,3 +132,9 @@ de voz, painel admin e o modo offline com sincronização. A arquitetura
 
 > **Nota:** o MemorIA é uma ferramenta auxiliar e **não substitui orientação
 > médica**.
+
+---
+
+## 📄 Licença
+
+MIT — ver [LICENSE](LICENSE). Mesma licença do projeto [MemorIA](../MemorIA).
