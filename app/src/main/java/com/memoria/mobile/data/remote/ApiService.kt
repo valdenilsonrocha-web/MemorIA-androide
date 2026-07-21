@@ -1,0 +1,65 @@
+package com.memoria.mobile.data.remote
+
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
+import retrofit2.http.PUT
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
+import retrofit2.http.Url
+
+/**
+ * MemorIA backend REST surface (base = `<root>/api/`). Mirrors
+ * frontend/public/src/services/apiService.js so the mobile app talks to the very
+ * same server the PWA uses.
+ */
+interface ApiService {
+
+    // Auth
+    @POST("auth/login")
+    suspend fun login(@Body body: LoginRequest): Response<Envelope<AuthData>>
+
+    @POST("auth/register")
+    suspend fun register(@Body body: RegisterRequest): Response<Envelope<AuthData>>
+
+    @GET("auth/me")
+    suspend fun me(): Response<Envelope<UserData>>
+
+    @PUT("auth/profile")
+    suspend fun updateProfile(@Body body: ProfileUpdateRequest): Response<Envelope<UserData>>
+
+    // Medications
+    @GET("medications")
+    suspend fun getMedications(): Response<Envelope<MedicationListData>>
+
+    @POST("medications")
+    suspend fun createMedication(@Body body: MedicationRequest): Response<Envelope<MedicationData>>
+
+    @PUT("medications/{id}")
+    suspend fun updateMedication(
+        @Path("id") id: String,
+        @Body body: MedicationRequest,
+    ): Response<Envelope<MedicationData>>
+
+    @DELETE("medications/{id}")
+    suspend fun deleteMedication(@Path("id") id: String): Response<SimpleResponse>
+
+    // History
+    @GET("history")
+    suspend fun getHistory(
+        @Query("limit") limit: Int = 100,
+        @Query("status") status: String? = null,
+    ): Response<Envelope<HistoryListData>>
+
+    @POST("history")
+    suspend fun addHistory(@Body body: HistoryRequest): Response<SimpleResponse>
+
+    @GET("history/adherence")
+    suspend fun getAdherence(@Query("days") days: Int = 30): Response<Envelope<Adherence>>
+
+    // Health (absolute URL: `<root>/health`, outside the /api prefix)
+    @GET
+    suspend fun health(@Url url: String): Response<Map<String, Any>>
+}
