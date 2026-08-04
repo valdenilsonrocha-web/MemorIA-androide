@@ -3,16 +3,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Simple pill glyph centered in the adaptive-icon safe zone. -->
+    <!--
+        MemórIA pill icon — two-tone capsule rotated -45°.
+        Upper half: white (#FFFFFF), lower half: mint (#B2F2E5).
+        No separate white outline; the pill IS the shape, no frame.
+    -->
     <group
         android:pivotX="54"
         android:pivotY="54"
         android:rotation="-45">
+        <!-- Upper half of the pill (white) -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M38,44 m0,0 a10,10 0 0 1 10,-10 h12 a10,10 0 0 1 10,10 v20 a10,10 0 0 1 -10,10 h-12 a10,10 0 0 1 -10,-10 z" />
+            android:pathData="M42,34 a12,12 0 0 1 12,-12 a12,12 0 0 1 12,12 v20 h-24 z" />
+        <!-- Lower half of the pill (mint green) -->
         <path
             android:fillColor="#B2F2E5"
-            android:pathData="M38,54 h32 v10 a10,10 0 0 1 -10,10 h-12 a10,10 0 0 1 -10,-10 z" />
+            android:pathData="M42,54 h24 v20 a12,12 0 0 1 -12,12 a12,12 0 0 1 -12,-12 z" />
     </group>
 </vector>
