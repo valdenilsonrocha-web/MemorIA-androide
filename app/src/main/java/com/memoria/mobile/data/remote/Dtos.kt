@@ -4,7 +4,10 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 /**
- * DTOs mirror the MemorIA backend contract (see backend/src/controllers/*).
+ * DTOs mirror the MemorIA backend contract (see the backend `controllers`
+ * directory). Note: `/` followed by `*` must not appear literally in a Kotlin
+ * comment — unlike Java, Kotlin NESTS block comments, so it would open an inner
+ * comment and leave this KDoc unterminated (the file failed to compile).
  * Every response is the envelope `{ success, message, data: {...} }`.
  */
 

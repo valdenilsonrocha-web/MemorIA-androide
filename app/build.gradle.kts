@@ -19,10 +19,15 @@ android {
         // Default public backend base URL (no trailing slash, WITHOUT /api — the
         // client appends /api, mirroring the web frontend's runtime-config.js).
         // Overridable at runtime in Settings.
+        //
+        // Points at the GCP deployment. Use the nip.io name, NOT the bare IP:
+        // the Let's Encrypt cert is issued for CN=35.247.217.66.nip.io, so
+        // https://35.247.217.66 fails hostname verification on Android
+        // (nip.io resolves the embedded IP, no DNS record to maintain).
         buildConfigField(
             "String",
             "DEFAULT_API_BASE_URL",
-            "\"https://memoria-api.onrender.com\""
+            "\"https://35.247.217.66.nip.io\""
         )
         vectorDrawables { useSupportLibrary = true }
     }
