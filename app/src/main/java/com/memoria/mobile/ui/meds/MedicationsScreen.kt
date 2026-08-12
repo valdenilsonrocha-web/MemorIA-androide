@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -165,7 +166,15 @@ private fun DoseCard(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Column(Modifier.padding(start = 16.dp)) {
-                    Text(slot.medication.name, style = MaterialTheme.typography.titleLarge)
+                    // O servidor aceita nomes até 255 caracteres. Sem limite de
+                    // linhas, um nome longo empurra os botões "Tomei"/adiar/pular
+                    // para fora do ecrã e o cartão ocupa-o por inteiro.
+                    Text(
+                        slot.medication.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         slot.medication.dosage,
                         style = MaterialTheme.typography.bodyLarge,
@@ -213,7 +222,12 @@ private fun MedicationCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(medication.name, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    medication.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     "${medication.dosage} · ${frequencyLabel(medication.frequency)}",
                     style = MaterialTheme.typography.bodyLarge,

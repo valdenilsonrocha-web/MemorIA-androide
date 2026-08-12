@@ -164,7 +164,10 @@ data class HistoryEntry(
 
 @JsonClass(generateAdapter = true)
 data class HistoryRequest(
-    val medicationId: String? = null,
+    // Não-nulável de propósito: no servidor `medication_id` é UUID NOT NULL com
+    // chave estrangeira, portanto omiti-lo era um pedido inválido — o contrato
+    // dizia opcional e o backend respondia 500. O compilador passa a garanti-lo.
+    val medicationId: String,
     val medicationName: String,
     val dosage: String,
     val scheduleTime: String,
