@@ -189,8 +189,19 @@ fun ProfileScreen(onBack: () -> Unit) {
                             )
                         }
                     }
+                    Text(
+                        "${state.contacts.size} de ${state.maxContacts} contato(s) — " +
+                            if (state.user?.isPremium == true) {
+                                "limite do plano Premium."
+                            } else {
+                                "o plano gratuito guarda 1; o Premium guarda 3."
+                            },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     OutlinedButton(
                         onClick = { vm.openContactDialog() },
+                        enabled = state.canAddContact,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null)
