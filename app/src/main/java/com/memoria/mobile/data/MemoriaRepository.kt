@@ -63,6 +63,14 @@ class MemoriaRepository(
     /** Keystore-encrypted CPF + password, for the "remember me" login. */
     val credentials: CredentialStore = CredentialStore(prefs)
 
+    /**
+     * Fired whenever something that affects the reminder schedule changes — a
+     * medication added, edited or removed, a dose recorded, a login or logout.
+     * [AppGraph] wires it to the alarm scheduler so no screen has to remember to.
+     */
+    @Volatile
+    var onScheduleChanged: (() -> Unit)? = null
+
     val tokenFlow: Flow<String?> = prefs.tokenFlow
     val baseUrlFlow: Flow<String?> = prefs.baseUrlFlow
 
@@ -114,11 +122,24 @@ class MemoriaRepository(
     suspend fun logout() {
         session.token = null
         prefs.clearToken()
+        // Clears every pending alarm: a logged-out phone must not keep buzzing
+        // about someone else's medication.
+        onScheduleChanged?.invoke()
     }
 
     /** Wipes the saved CPF + password (Settings → "Esquecer dados salvos"). */
     suspend fun forgetCredentials() {
         credentials.clear()
+    }
+
+    // ---- Reminder preferences ----
+
+    /** Minutes the notification's "Adiar" button pushes a dose forward. */
+    suspend fun snoozeMinutes(): Int =
+        prefs.string(KEY_SNOOZE)?.toIntOrNull()?.takeIf { it in 1..180 } ?: DEFAULT_SNOOZE
+
+    suspend fun setSnoozeMinutes(minutes: Int) {
+        prefs.setString(KEY_SNOOZE, minutes.coerceIn(1, 180).toString())
     }
 
     // ---- Auth ----
@@ -135,7 +156,8 @@ class MemoriaRepository(
         if (result is ApiResult.Ok && credentials.rememberEnabled()) {
             credentials.save(cpf, password)
         }
-        return result
+        // A new session means a new schedule to arm.
+        return result.alsoReschedule()
     }
 
     suspend fun register(
@@ -161,7 +183,7 @@ class MemoriaRepository(
         if (result is ApiResult.Ok && credentials.rememberEnabled()) {
             credentials.save(cpf, password)
         }
-        return result
+        return result.alsoReschedule()
     }
 
     suspend fun me(): ApiResult<User> = call {
@@ -192,16 +214,16 @@ class MemoriaRepository(
     suspend fun createMedication(request: MedicationRequest): ApiResult<Medication> = call {
         val r = api().createMedication(request)
         envelopeValue(r) { it.medication }
-    }
+    }.alsoReschedule()
 
     suspend fun updateMedication(id: String, request: MedicationRequest): ApiResult<Medication> = call {
         val r = api().updateMedication(id, request)
         envelopeValue(r) { it.medication }
-    }
+    }.alsoReschedule()
 
     suspend fun deleteMedication(id: String): ApiResult<Unit> = call {
         simpleResult(api().deleteMedication(id))
-    }
+    }.alsoReschedule()
 
     // ---- History ----
 
@@ -212,7 +234,7 @@ class MemoriaRepository(
 
     suspend fun addHistory(request: HistoryRequest): ApiResult<Unit> = call {
         simpleResult(api().addHistory(request))
-    }
+    }.alsoReschedule()
 
     suspend fun adherence(days: Int = 30): ApiResult<Adherence> = call {
         val r = api().getAdherence(days)
@@ -362,4 +384,18 @@ class MemoriaRepository(
     }
 
     private fun digitsOnly(s: String): String = s.filter { it.isDigit() }
+
+    private companion object {
+        const val KEY_SNOOZE = "reminder_snooze_minutes"
+        const val DEFAULT_SNOOZE = 10
+    }
+
+    /**
+     * Re-arms the reminder window after a call that changed the schedule.
+     * Only on success — a failed write changed nothing, and re-reading the
+     * medications after every network error would just burn battery.
+     */
+    private fun <T> ApiResult<T>.alsoReschedule(): ApiResult<T> = also {
+        if (it is ApiResult.Ok) onScheduleChanged?.invoke()
+    }
 }

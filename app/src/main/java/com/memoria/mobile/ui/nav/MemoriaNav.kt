@@ -1,5 +1,9 @@
 package com.memoria.mobile.ui.nav
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
@@ -12,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +36,8 @@ import com.memoria.mobile.ui.admin.AdminScreen
 import com.memoria.mobile.ui.auth.LoginScreen
 import com.memoria.mobile.ui.auth.RegisterScreen
 import com.memoria.mobile.ui.calendar.CalendarScreen
+import com.memoria.mobile.reminders.MemoriaNotifications
+import com.memoria.mobile.ui.common.reminderScheduler
 import com.memoria.mobile.ui.common.repository
 import com.memoria.mobile.ui.doctors.MyDoctorsScreen
 import com.memoria.mobile.ui.health.HealthScreen
@@ -102,6 +109,24 @@ private fun MainFlow(onLogout: () -> Unit) {
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
     val showBottomBar = tabs.any { currentRoute == it.route }
+    val context = LocalContext.current
+
+    val askNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Denied is survivable: the app still works, it just cannot remind. */ }
+
+    // Asked here rather than at launch because this composable exists only once
+    // the user is in — a permission dialog over the login screen reads as noise
+    // and gets dismissed. Arming the alarms rides along, so both a returning
+    // session and a fresh login end up with reminders scheduled.
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !MemoriaNotifications.canPost(context)
+        ) {
+            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        runCatching { context.reminderScheduler().reschedule() }
+    }
 
     // Subscriptions are completed on the MemorIA site, never in the app, so the
     // Plans screen needs whatever backend the user is actually pointed at.

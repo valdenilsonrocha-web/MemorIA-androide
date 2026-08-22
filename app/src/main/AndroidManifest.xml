@@ -4,6 +4,29 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      Lembrar a dose na hora certa é a função do app, não um extra.
+
+      POST_NOTIFICATIONS é pedido em tempo de execução a partir do Android 13.
+
+      USE_EXACT_ALARM cobre o Android 14+: a Google concede-a sem diálogo a apps
+      cuja função central é alarme/lembrete — é exatamente este caso, e um
+      lembrete de medicação que escorrega meia hora não serve. Em Android 12/13
+      a mesma capacidade vem de SCHEDULE_EXACT_ALARM, que o utilizador pode
+      revogar; o agendador degrada para alarme inexato nesse caso em vez de
+      rebentar.
+
+      RECEIVE_BOOT_COMPLETED volta a armar os alarmes depois de reiniciar o
+      telemóvel — sem isso o utilizador ficava sem lembretes até reabrir o app.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="33" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".MemoriaApp"
         android:allowBackup="true"
@@ -26,6 +49,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Dispara o lembrete e trata os botões "Tomei" / "Adiar". -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Rearma os alarmes depois do arranque e de uma atualização do app. -->
+        <receiver
+            android:name=".reminders.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

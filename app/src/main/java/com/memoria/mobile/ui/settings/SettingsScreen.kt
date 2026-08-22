@@ -1,7 +1,10 @@
 package com.memoria.mobile.ui.settings
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,11 +14,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.LockReset
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,11 +34,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.BackTopBar
-import com.memoria.mobile.ui.common.repoViewModel
+import com.memoria.mobile.ui.common.systemViewModel
 import com.memoria.mobile.ui.theme.GreenOk
 import com.memoria.mobile.ui.theme.RedMiss
 
@@ -44,9 +50,10 @@ fun SettingsScreen(
     onLoggedOut: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val vm = repoViewModel { SettingsViewModel(it) }
+    val vm = systemViewModel { repo, app, scheduler -> SettingsViewModel(repo, app, scheduler) }
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(state.message) {
@@ -120,6 +127,60 @@ fun SettingsScreen(
                         true -> Text("Servidor online ✅", color = GreenOk, style = MaterialTheme.typography.bodyLarge)
                         false -> Text("Sem resposta do servidor ❌", color = RedMiss, style = MaterialTheme.typography.bodyLarge)
                         null -> {}
+                    }
+                }
+            }
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Lembretes", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        when {
+                            !state.notificationsAllowed ->
+                                "As notificações estão desligadas — nenhum lembrete de dose vai aparecer."
+                            !state.exactAlarmsAllowed ->
+                                "Os lembretes estão ligados, mas sem permissão de alarme exato podem " +
+                                    "atrasar alguns minutos."
+                            else ->
+                                "Lembretes ligados. O app avisa na hora de cada dose, mesmo com a tela bloqueada."
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (state.notificationsAllowed) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                    Text(
+                        "Soneca do botão “Adiar”: ${state.snoozeMinutes} minutos",
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(5, 10, 15, 30).forEach { minutes ->
+                            FilterChip(
+                                selected = state.snoozeMinutes == minutes,
+                                onClick = { vm.setSnoozeMinutes(minutes) },
+                                label = { Text("$minutes min") },
+                            )
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = vm::sendTestNotification,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.NotificationsActive, contentDescription = null)
+                        Text("  Testar lembrete agora")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Abrir notificações do sistema")
                     }
                 }
             }
