@@ -18,6 +18,7 @@ data class SettingsUiState(
     val message: String? = null,
     val checking: Boolean = false,
     val reachable: Boolean? = null,
+    val hasSavedCredentials: Boolean = false,
 )
 
 class SettingsViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -28,10 +29,24 @@ class SettingsViewModel(private val repo: MemoriaRepository) : ViewModel() {
     fun load() {
         _state.value = _state.value.copy(loading = true, baseUrl = repo.currentBaseUrl())
         viewModelScope.launch {
+            val hasSaved = repo.credentials.hasSaved()
             when (val r = repo.me()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(loading = false, user = r.value)
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Ok -> _state.value =
+                    _state.value.copy(loading = false, user = r.value, hasSavedCredentials = hasSaved)
+                is ApiResult.Err -> _state.value =
+                    _state.value.copy(loading = false, error = r.message, hasSavedCredentials = hasSaved)
             }
+        }
+    }
+
+    /** Wipes the remembered CPF + password; the login form goes back to empty. */
+    fun forgetCredentials() {
+        viewModelScope.launch {
+            repo.forgetCredentials()
+            _state.value = _state.value.copy(
+                hasSavedCredentials = false,
+                message = "CPF e senha esquecidos neste celular.",
+            )
         }
     }
 
@@ -53,8 +68,14 @@ class SettingsViewModel(private val repo: MemoriaRepository) : ViewModel() {
     fun testConnection() {
         _state.value = _state.value.copy(checking = true, reachable = null)
         viewModelScope.launch {
-            val ok = repo.serverReachable()
-            _state.value = _state.value.copy(checking = false, reachable = ok)
+            // checkServer() carries the reason, so a failure names its cause
+            // instead of only turning the indicator red.
+            when (val r = repo.checkServer()) {
+                is ApiResult.Ok ->
+                    _state.value = _state.value.copy(checking = false, reachable = true)
+                is ApiResult.Err ->
+                    _state.value = _state.value.copy(checking = false, reachable = false, error = r.message)
+            }
         }
     }
 

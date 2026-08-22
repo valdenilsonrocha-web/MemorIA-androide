@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.remote.Medication
+import com.memoria.mobile.ui.common.DoseSlot
 import com.memoria.mobile.ui.common.EmptyState
 import com.memoria.mobile.ui.common.ErrorState
 import com.memoria.mobile.ui.common.LoadingBox
@@ -60,6 +61,7 @@ fun MedicationsScreen(
     contentPadding: PaddingValues,
     onAdd: () -> Unit,
     onEdit: (String) -> Unit,
+    onOpenDetails: (String) -> Unit,
 ) {
     val vm = repoViewModel { MedicationsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -140,6 +142,7 @@ fun MedicationsScreen(
                 items(state.medications, key = { it.id ?: it.name }) { med ->
                     MedicationCard(
                         medication = med,
+                        onOpen = { med.id?.let(onOpenDetails) },
                         onEdit = { med.id?.let(onEdit) },
                         onDelete = { vm.delete(med) },
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -209,14 +212,17 @@ private fun DoseCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MedicationCard(
     medication: Medication,
+    onOpen: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    // Tapping the body opens the details page, matching the web list.
+    Card(onClick = onOpen, modifier = modifier.fillMaxWidth()) {
         Row(
             Modifier.padding(16.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

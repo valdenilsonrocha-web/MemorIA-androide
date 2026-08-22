@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Release signing. The credentials live OUTSIDE the repo — in keystore.properties
+// (git-ignored) or in the MEMORIA_KEYSTORE_* environment variables for CI. When
+// neither is present the release build still succeeds, it just produces an
+// unsigned APK, so a fresh clone is not blocked by a missing key.
+val keystoreProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun signingValue(property: String, environmentVariable: String): String? =
+    (keystoreProps.getProperty(property) ?: System.getenv(environmentVariable))
+        ?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.memoria.mobile"
@@ -32,8 +47,21 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        signingValue("storeFile", "MEMORIA_KEYSTORE_FILE")?.let { path ->
+            create("release") {
+                storeFile = rootProject.file(path)
+                storePassword = signingValue("storePassword", "MEMORIA_KEYSTORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "MEMORIA_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "MEMORIA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Null when no credentials were supplied — the APK is then unsigned.
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

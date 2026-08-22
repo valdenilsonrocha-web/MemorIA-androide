@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.LockReset
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,7 +24,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.theme.GreenOk
 import com.memoria.mobile.ui.theme.RedMiss
@@ -41,6 +42,7 @@ import com.memoria.mobile.ui.theme.RedMiss
 fun SettingsScreen(
     contentPadding: PaddingValues,
     onLoggedOut: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val vm = repoViewModel { SettingsViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -55,7 +57,7 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Ajustes") }) },
+        topBar = { BackTopBar("Configurações", onBack) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { inner ->
         Column(
@@ -118,6 +120,33 @@ fun SettingsScreen(
                         true -> Text("Servidor online ✅", color = GreenOk, style = MaterialTheme.typography.bodyLarge)
                         false -> Text("Sem resposta do servidor ❌", color = RedMiss, style = MaterialTheme.typography.bodyLarge)
                         null -> {}
+                    }
+                }
+            }
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Acesso", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        if (state.hasSavedCredentials) {
+                            "O CPF e a senha estão salvos neste celular, protegidos pelo cofre do " +
+                                "Android. A tela de login já vem preenchida."
+                        } else {
+                            "O CPF e a senha não estão salvos. Marque \"Salvar meu CPF e senha\" " +
+                                "na tela de login para não precisar digitar de novo."
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    // Sits next to logout on purpose: handing the phone to someone
+                    // else is exactly when the saved password should go.
+                    OutlinedButton(
+                        onClick = vm::forgetCredentials,
+                        enabled = state.hasSavedCredentials,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Filled.LockReset, contentDescription = null)
+                        Text("  Esquecer CPF e senha salvos")
                     }
                 }
             }

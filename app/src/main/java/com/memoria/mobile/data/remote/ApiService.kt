@@ -59,6 +59,26 @@ interface ApiService {
     @GET("history/adherence")
     suspend fun getAdherence(@Query("days") days: Int = 30): Response<Envelope<Adherence>>
 
+    // Prescriptions
+    @GET("prescriptions")
+    suspend fun getPrescriptions(): Response<Envelope<PrescriptionListData>>
+
+    @POST("prescriptions")
+    suspend fun createPrescription(
+        @Body body: PrescriptionRequest,
+    ): Response<Envelope<PrescriptionData>>
+
+    @DELETE("prescriptions/{id}")
+    suspend fun deletePrescription(@Path("id") id: String): Response<SimpleResponse>
+
+    // Payments
+    @GET("payments/config")
+    suspend fun paymentConfig(): Response<Envelope<PaymentConfig>>
+
+    // Admin (owner dashboard — 403 for a non-admin account)
+    @GET("admin/owner-stats")
+    suspend fun ownerStats(): Response<Envelope<OwnerStats>>
+
     // Health (absolute URL: `<root>/health`, outside the /api prefix)
     @GET
     suspend fun health(@Url url: String): Response<Map<String, Any>>

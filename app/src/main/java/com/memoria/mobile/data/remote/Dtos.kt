@@ -185,3 +185,130 @@ data class Adherence(
     val missed: Int = 0,
     val adherenceRate: String = "0%",
 )
+
+// ---- Prescriptions -------------------------------------------------------
+
+@JsonClass(generateAdapter = true)
+data class PrescriptionListData(
+    val prescriptions: List<Prescription> = emptyList(),
+)
+
+@JsonClass(generateAdapter = true)
+data class PrescriptionData(
+    val prescription: Prescription? = null,
+)
+
+/**
+ * `imageData` is a `data:image/...;base64,...` URL — the same shape the web app
+ * posts. The backend caps it at 5 MB of decoded bytes, so the camera/gallery
+ * picture is downscaled and re-encoded before it gets here.
+ */
+@JsonClass(generateAdapter = true)
+data class Prescription(
+    val id: String? = null,
+    val fileName: String = "receita.jpg",
+    val imageData: String = "",
+    val capturedAt: String? = null,
+    val createdAt: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class PrescriptionRequest(
+    val fileName: String,
+    val imageData: String,
+    val capturedAt: String? = null,
+)
+
+// ---- Payments ------------------------------------------------------------
+
+@JsonClass(generateAdapter = true)
+data class PaymentConfig(
+    val gateway: String = "stripe",
+    val configured: Boolean = false,
+    val plans: PaymentPlans? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class PaymentPlans(
+    val monthly: PaymentPlan? = null,
+    val annual: PaymentPlan? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class PaymentPlan(
+    val label: String = "",
+    val interval: String = "",
+    val amountInCents: Int = 0,
+    val displayPrice: String = "",
+)
+
+// ---- Admin (owner dashboard) --------------------------------------------
+
+@JsonClass(generateAdapter = true)
+data class OwnerStats(
+    val overview: OwnerOverview? = null,
+    val byGender: List<CountBucket> = emptyList(),
+    val byState: List<CountBucket> = emptyList(),
+    val byCity: List<CountBucket> = emptyList(),
+    val byAge: List<AgeBucket> = emptyList(),
+    val topMedications: List<CountBucket> = emptyList(),
+    val signupTrend: List<TrendPoint> = emptyList(),
+    val recentSignups: List<RecentSignup> = emptyList(),
+    val generatedAt: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class OwnerOverview(
+    val totalUsers: Int = 0,
+    val newToday: Int = 0,
+    val newThisWeek: Int = 0,
+    val newThisMonth: Int = 0,
+    val activeUsers: Int = 0,
+    val totalMedications: Int = 0,
+    val totalTaken: Int = 0,
+    val totalMissed: Int = 0,
+    val adherenceRate: String? = null,
+)
+
+/**
+ * One `GROUP BY` row. The grouped column differs per query — `gender`, `state`,
+ * `city`, or the medication `name` — so every one is optional and [label] picks
+ * whichever came back.
+ */
+@JsonClass(generateAdapter = true)
+data class CountBucket(
+    val gender: String? = null,
+    val state: String? = null,
+    val city: String? = null,
+    val name: String? = null,
+    val count: Int = 0,
+) {
+    val label: String
+        get() = listOfNotNull(name, city, state, gender)
+            .firstOrNull { it.isNotBlank() }
+            ?: "Não informado"
+}
+
+@JsonClass(generateAdapter = true)
+data class AgeBucket(
+    val group: String = "",
+    val count: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class TrendPoint(
+    val date: String = "",
+    val count: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class RecentSignup(
+    val id: String? = null,
+    val name: String = "",
+    val email: String = "",
+    val city: String = "",
+    val state: String = "",
+    val gender: String = "not_informed",
+    val createdAt: String? = null,
+    val lastSync: String? = null,
+)

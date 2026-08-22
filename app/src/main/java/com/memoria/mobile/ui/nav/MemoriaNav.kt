@@ -2,9 +2,10 @@ package com.memoria.mobile.ui.nav
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -16,30 +17,48 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.navigation.NavType
+import com.memoria.mobile.ui.admin.AdminScreen
 import com.memoria.mobile.ui.auth.LoginScreen
 import com.memoria.mobile.ui.auth.RegisterScreen
+import com.memoria.mobile.ui.calendar.CalendarScreen
+import com.memoria.mobile.ui.common.repository
+import com.memoria.mobile.ui.doctors.MyDoctorsScreen
+import com.memoria.mobile.ui.health.HealthScreen
+import com.memoria.mobile.ui.help.HelpScreen
 import com.memoria.mobile.ui.history.HistoryScreen
+import com.memoria.mobile.ui.home.DashboardScreen
+import com.memoria.mobile.ui.meds.MedicationDetailsScreen
 import com.memoria.mobile.ui.meds.MedicationEditScreen
 import com.memoria.mobile.ui.meds.MedicationsScreen
+import com.memoria.mobile.ui.more.MoreScreen
+import com.memoria.mobile.ui.optimization.OptimizationGuideScreen
+import com.memoria.mobile.ui.plans.PlansScreen
+import com.memoria.mobile.ui.prescriptions.PrescriptionsScreen
+import com.memoria.mobile.ui.profile.ProfileScreen
+import com.memoria.mobile.ui.replenishment.ReplenishmentScreen
+import com.memoria.mobile.ui.reports.ReportsScreen
 import com.memoria.mobile.ui.settings.SettingsScreen
 import com.memoria.mobile.ui.whatsapp.WhatsAppScreen
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
+/** The web app's bottom bar: Início, Medicamentos, Saúde, Histórico, Mais. */
 private val tabs = listOf(
+    Tab(Routes.HOME, "Início", Icons.Filled.Home),
     Tab(Routes.MEDS, "Remédios", Icons.AutoMirrored.Filled.List),
+    Tab(Routes.HEALTH, "Saúde", Icons.Filled.Favorite),
     Tab(Routes.HISTORY, "Histórico", Icons.Filled.History),
-    Tab(Routes.WHATSAPP, "WhatsApp", Icons.Filled.Chat),
-    Tab(Routes.SETTINGS, "Ajustes", Icons.Filled.Settings),
+    Tab(Routes.MORE, "Mais", Icons.Filled.MoreHoriz),
 )
 
 /**
@@ -84,6 +103,10 @@ private fun MainFlow(onLogout: () -> Unit) {
     val currentRoute = backStack?.destination?.route
     val showBottomBar = tabs.any { currentRoute == it.route }
 
+    // Subscriptions are completed on the MemorIA site, never in the app, so the
+    // Plans screen needs whatever backend the user is actually pointed at.
+    val checkoutUrl = LocalContext.current.repository().currentBaseUrl()
+
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -101,26 +124,37 @@ private fun MainFlow(onLogout: () -> Unit) {
             }
         },
     ) { padding ->
-        NavHost(navController = nav, startDestination = Routes.MEDS) {
+        val back = { nav.popBackStack(); Unit }
+
+        NavHost(navController = nav, startDestination = Routes.HOME) {
+            // ---- Bottom bar ----
+            composable(Routes.HOME) {
+                DashboardScreen(
+                    contentPadding = padding,
+                    onAdd = { nav.navigate(Routes.medEdit(null)) },
+                    onOpenMedication = { id -> nav.navigate(Routes.medDetails(id)) },
+                    onOpenPlans = { nav.navigate(Routes.PLANS) },
+                )
+            }
             composable(Routes.MEDS) {
                 MedicationsScreen(
                     contentPadding = padding,
                     onAdd = { nav.navigate(Routes.medEdit(null)) },
                     onEdit = { id -> nav.navigate(Routes.medEdit(id)) },
+                    onOpenDetails = { id -> nav.navigate(Routes.medDetails(id)) },
                 )
+            }
+            composable(Routes.HEALTH) {
+                HealthScreen(contentPadding = padding)
             }
             composable(Routes.HISTORY) {
                 HistoryScreen(contentPadding = padding)
             }
-            composable(Routes.WHATSAPP) {
-                WhatsAppScreen(contentPadding = padding)
+            composable(Routes.MORE) {
+                MoreScreen(contentPadding = padding, onNavigate = { nav.navigate(it) })
             }
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    contentPadding = padding,
-                    onLoggedOut = onLogout,
-                )
-            }
+
+            // ---- Secondary ----
             composable(
                 route = "${Routes.MED_EDIT}/{id}",
                 arguments = listOf(navArgument("id") { type = NavType.StringType }),
@@ -129,8 +163,43 @@ private fun MainFlow(onLogout: () -> Unit) {
                 val id = if (raw == "new") null else raw
                 MedicationEditScreen(
                     medicationId = id,
-                    onDone = { nav.popBackStack() },
-                    onCancel = { nav.popBackStack() },
+                    onDone = back,
+                    onCancel = back,
+                )
+            }
+            composable(
+                route = "${Routes.MED_DETAILS}/{id}",
+                arguments = listOf(navArgument("id") { type = NavType.StringType }),
+            ) { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                MedicationDetailsScreen(
+                    medicationId = id,
+                    onBack = back,
+                    onEdit = { medId -> nav.navigate(Routes.medEdit(medId)) },
+                )
+            }
+            composable(Routes.CALENDAR) { CalendarScreen(onBack = back) }
+            composable(Routes.REPORTS) {
+                ReportsScreen(onBack = back, onOpenPlans = { nav.navigate(Routes.PLANS) })
+            }
+            composable(Routes.REPLENISHMENT) { ReplenishmentScreen(onBack = back) }
+            composable(Routes.DOCTORS) { MyDoctorsScreen(onBack = back) }
+            composable(Routes.PRESCRIPTIONS) {
+                PrescriptionsScreen(onBack = back, onOpenPlans = { nav.navigate(Routes.PLANS) })
+            }
+            composable(Routes.PROFILE) { ProfileScreen(onBack = back) }
+            composable(Routes.PLANS) { PlansScreen(onBack = back, checkoutUrl = checkoutUrl) }
+            composable(Routes.HELP) { HelpScreen(onBack = back) }
+            composable(Routes.OPTIMIZATION) { OptimizationGuideScreen(onBack = back) }
+            composable(Routes.ADMIN) { AdminScreen(onBack = back) }
+            composable(Routes.WHATSAPP) {
+                WhatsAppScreen(contentPadding = padding, onBack = back)
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    contentPadding = padding,
+                    onLoggedOut = onLogout,
+                    onBack = back,
                 )
             }
         }

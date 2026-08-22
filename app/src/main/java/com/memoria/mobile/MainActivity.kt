@@ -40,7 +40,9 @@ private fun AppEntry() {
     var loggedIn by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        repo.bootstrap()
+        // A corrupt preferences file must not strand the app on this spinner:
+        // the login screen can now repair the server address by itself.
+        runCatching { repo.bootstrap() }
         loggedIn = repo.isLoggedIn()
         ready = true
     }

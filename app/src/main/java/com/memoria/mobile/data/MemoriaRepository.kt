@@ -13,13 +13,27 @@ import com.memoria.mobile.data.remote.HistoryRequest
 import com.memoria.mobile.data.remote.LoginRequest
 import com.memoria.mobile.data.remote.Medication
 import com.memoria.mobile.data.remote.MedicationRequest
+import com.memoria.mobile.data.local.CredentialStore
+import com.memoria.mobile.data.local.LocalStore
+import com.memoria.mobile.data.remote.OwnerStats
+import com.memoria.mobile.data.remote.PaymentConfig
+import com.memoria.mobile.data.remote.Prescription
+import com.memoria.mobile.data.remote.PrescriptionRequest
 import com.memoria.mobile.data.remote.ProfileUpdateRequest
 import com.memoria.mobile.data.remote.RegisterRequest
 import com.memoria.mobile.data.remote.SessionState
 import com.memoria.mobile.data.remote.SimpleResponse
 import com.memoria.mobile.data.remote.User
+import com.squareup.moshi.JsonDataException
+import com.squareup.moshi.JsonEncodingException
 import kotlinx.coroutines.flow.Flow
 import retrofit2.Response
+import java.io.IOException
+import java.io.InterruptedIOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 /** Success/failure wrapper surfaced to the ViewModels. */
 sealed interface ApiResult<out T> {
@@ -39,12 +53,38 @@ class MemoriaRepository(
     @Volatile
     private var baseRoot: String = BuildConfig.DEFAULT_API_BASE_URL
 
+    /**
+     * Phone-side records the backend has no table for (health measurements, care
+     * network, consultations). Exposed directly so the screens that own them can
+     * read/write without a pass-through method per field.
+     */
+    val local: LocalStore = LocalStore(prefs)
+
+    /** Keystore-encrypted CPF + password, for the "remember me" login. */
+    val credentials: CredentialStore = CredentialStore(prefs)
+
     val tokenFlow: Flow<String?> = prefs.tokenFlow
     val baseUrlFlow: Flow<String?> = prefs.baseUrlFlow
 
-    /** Load persisted session at startup. */
+    /**
+     * Load persisted session at startup.
+     *
+     * A base URL saved in Settings used to beat [BuildConfig.DEFAULT_API_BASE_URL]
+     * forever, so an address saved once against an old build kept the app pointed
+     * at a dead host through every update — and the only escape was clearing app
+     * data. The override now carries a stamp of the default it was made against:
+     * when a new build ships a different default, the stale override is dropped.
+     */
     suspend fun bootstrap() {
-        prefs.baseUrl()?.takeIf { it.isNotBlank() }?.let { baseRoot = ApiProvider.normalizeRoot(it) }
+        val saved = prefs.baseUrl()?.takeIf { it.isNotBlank() }
+        if (saved != null) {
+            if (prefs.baseUrlStamp() == BuildConfig.DEFAULT_API_BASE_URL) {
+                baseRoot = ApiProvider.normalizeRoot(saved)
+            } else {
+                prefs.clearBaseUrl()
+                baseRoot = BuildConfig.DEFAULT_API_BASE_URL
+            }
+        }
         session.token = prefs.token()
     }
 
@@ -56,18 +96,47 @@ class MemoriaRepository(
 
     suspend fun setBaseUrl(url: String) {
         baseRoot = ApiProvider.normalizeRoot(url)
-        prefs.setBaseUrl(baseRoot)
+        prefs.setBaseUrl(baseRoot, BuildConfig.DEFAULT_API_BASE_URL)
     }
 
+    /** Drops any saved override and goes back to the address shipped in this build. */
+    suspend fun resetBaseUrlToDefault() {
+        baseRoot = BuildConfig.DEFAULT_API_BASE_URL
+        prefs.clearBaseUrl()
+    }
+
+    /**
+     * Ends the session but deliberately KEEPS the remembered credentials, so a
+     * user who logs out can get back in without retyping. Handing the phone to
+     * someone else is the case that wants them gone — [forgetCredentials] does
+     * that, and Settings puts it next to the logout button.
+     */
     suspend fun logout() {
         session.token = null
         prefs.clearToken()
     }
 
+    /** Wipes the saved CPF + password (Settings → "Esquecer dados salvos"). */
+    suspend fun forgetCredentials() {
+        credentials.clear()
+    }
+
     // ---- Auth ----
 
-    suspend fun login(cpf: String, password: String): ApiResult<User> =
-        authCall { api().login(LoginRequest(cpf = digitsOnly(cpf), password = password)) }
+    /**
+     * On success the credentials are remembered (unless the user turned that off),
+     * so the next login screen comes pre-filled. Saving happens here rather than
+     * in the ViewModel because this is the only place that knows the password was
+     * actually accepted — remembering a rejected one would lock the user out on
+     * every launch.
+     */
+    suspend fun login(cpf: String, password: String): ApiResult<User> {
+        val result = authCall { api().login(LoginRequest(cpf = digitsOnly(cpf), password = password)) }
+        if (result is ApiResult.Ok && credentials.rememberEnabled()) {
+            credentials.save(cpf, password)
+        }
+        return result
+    }
 
     suspend fun register(
         cpf: String,
@@ -75,17 +144,24 @@ class MemoriaRepository(
         password: String,
         email: String?,
         phone: String?,
-    ): ApiResult<User> = authCall {
-        api().register(
-            RegisterRequest(
-                cpf = digitsOnly(cpf),
-                name = name.trim(),
-                password = password,
-                email = email?.trim()?.ifBlank { null },
-                phone = phone?.let { digitsOnly(it) }?.ifBlank { null },
-                lgpdConsent = true,
+    ): ApiResult<User> {
+        val result = authCall {
+            api().register(
+                RegisterRequest(
+                    cpf = digitsOnly(cpf),
+                    name = name.trim(),
+                    password = password,
+                    email = email?.trim()?.ifBlank { null },
+                    phone = phone?.let { digitsOnly(it) }?.ifBlank { null },
+                    lgpdConsent = true,
+                )
             )
-        )
+        }
+        // A brand-new account benefits most from not having to retype anything.
+        if (result is ApiResult.Ok && credentials.rememberEnabled()) {
+            credentials.save(cpf, password)
+        }
+        return result
     }
 
     suspend fun me(): ApiResult<User> = call {
@@ -143,14 +219,51 @@ class MemoriaRepository(
         envelopeValue(r) { it }
     }
 
+    // ---- Prescriptions ----
+
+    suspend fun prescriptions(): ApiResult<List<Prescription>> = call {
+        val r = api().getPrescriptions()
+        envelopeValue(r) { it.prescriptions }
+    }
+
+    suspend fun createPrescription(request: PrescriptionRequest): ApiResult<Prescription> = call {
+        val r = api().createPrescription(request)
+        envelopeValue(r) { it.prescription }
+    }
+
+    suspend fun deletePrescription(id: String): ApiResult<Unit> = call {
+        simpleResult(api().deletePrescription(id))
+    }
+
+    // ---- Plans / payments ----
+
+    suspend fun paymentConfig(): ApiResult<PaymentConfig> = call {
+        val r = api().paymentConfig()
+        envelopeValue(r) { it }
+    }
+
+    // ---- Admin ----
+
+    suspend fun ownerStats(): ApiResult<OwnerStats> = call {
+        val r = api().ownerStats()
+        envelopeValue(r) { it }
+    }
+
     // ---- Connectivity ----
 
-    suspend fun serverReachable(): Boolean = try {
+    /** Health probe that reports WHY it failed, not merely that it did. */
+    suspend fun checkServer(): ApiResult<Unit> = call {
         val r = api().health(apiProvider.healthUrl(baseRoot))
-        r.isSuccessful && r.body()?.get("status") == "ok"
-    } catch (_: Exception) {
-        false
+        if (r.isSuccessful && r.body()?.get("status") == "ok") {
+            ApiResult.Ok(Unit)
+        } else {
+            ApiResult.Err(
+                "O endereço respondeu, mas não parece ser o servidor MemorIA (HTTP ${r.code()})."
+            )
+        }
     }
+
+    suspend fun serverReachable(): Boolean = checkServer() is ApiResult.Ok
 
     // ---- Helpers ----
 
@@ -194,7 +307,32 @@ class MemoriaRepository(
     private suspend inline fun <T> call(block: suspend () -> ApiResult<T>): ApiResult<T> = try {
         block()
     } catch (e: Exception) {
-        ApiResult.Err(e.message ?: "Falha de rede. Verifique a conexão e o endereço do servidor.")
+        ApiResult.Err(networkError(e))
+    }
+
+    /**
+     * Turns a network/parsing exception into something an 80-year-old can act on.
+     * The raw `e.message` used to reach the screen verbatim — in English, and for
+     * a stalled connection often just the word "timeout". Every message names the
+     * server in use, because a wrong address is the likeliest cause.
+     */
+    private fun networkError(e: Throwable): String = when (e) {
+        // SocketTimeoutException is an InterruptedIOException — keep it first.
+        is SocketTimeoutException ->
+            "O servidor demorou demais a responder. Verifique a internet e o endereço em “Servidor” ($baseRoot)."
+        is InterruptedIOException ->
+            "A ligação demorou demais e foi cancelada. Tente de novo ou verifique o endereço em “Servidor” ($baseRoot)."
+        is UnknownHostException ->
+            "Não foi possível encontrar o servidor. Verifique a internet e o endereço em “Servidor” ($baseRoot)."
+        is SSLException ->
+            "Falha na ligação segura com o servidor ($baseRoot). Confirme também a data e a hora do telemóvel."
+        is ConnectException ->
+            "Não foi possível ligar ao servidor. Verifique a internet e o endereço em “Servidor” ($baseRoot)."
+        is JsonDataException, is JsonEncodingException ->
+            "O servidor respondeu num formato inesperado. Verifique o endereço em “Servidor” ($baseRoot)."
+        is IOException ->
+            "Falha de rede. Verifique a conexão e o endereço em “Servidor” ($baseRoot)."
+        else -> e.message ?: "Erro inesperado. Tente novamente."
     }
 
     private fun <B> errorMessage(response: Response<Envelope<B>>): String {

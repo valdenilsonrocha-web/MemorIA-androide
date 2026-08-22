@@ -14,7 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,11 +45,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.remote.Caregiver
 import com.memoria.mobile.ui.common.LoadingBox
+import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.repoViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WhatsAppScreen(contentPadding: PaddingValues) {
+fun WhatsAppScreen(contentPadding: PaddingValues, onBack: () -> Unit) {
     val vm = repoViewModel { WhatsAppViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
@@ -69,7 +69,7 @@ fun WhatsAppScreen(contentPadding: PaddingValues) {
     var cgRelation by remember { mutableStateOf("") }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Avisos por WhatsApp") }) },
+        topBar = { BackTopBar("Avisos por WhatsApp", onBack) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { inner ->
         if (state.loading) {
@@ -88,7 +88,7 @@ fun WhatsAppScreen(contentPadding: PaddingValues) {
             ElevatedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Chat, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Text(
                             "  Como funcionam os avisos",
                             style = MaterialTheme.typography.titleLarge,
@@ -117,7 +117,7 @@ fun WhatsAppScreen(contentPadding: PaddingValues) {
                     onClick = { openWhatsApp(context, state.patientPhone) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(Icons.Filled.Chat, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
                     Text("  Abrir conversa no WhatsApp")
                 }
             }
