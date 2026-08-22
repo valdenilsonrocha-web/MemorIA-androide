@@ -72,6 +72,8 @@ data class User(
     val caregivers: List<Caregiver> = emptyList(),
     val subscriptionStatus: String? = null,
     val isPremium: Boolean = false,
+    /** ISO instant of the LGPD consent, or null once revoked. */
+    val consentDate: String? = null,
     val lastSync: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
@@ -311,4 +313,12 @@ data class RecentSignup(
     val gender: String = "not_informed",
     val createdAt: String? = null,
     val lastSync: String? = null,
+)
+
+// ---- LGPD ----
+
+@JsonClass(generateAdapter = true)
+data class ConsentRequest(
+    /** true grants, false revokes — the server stamps or clears `consentDate`. */
+    val consent: Boolean,
 )

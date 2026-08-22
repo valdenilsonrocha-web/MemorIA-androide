@@ -43,6 +43,8 @@ import com.memoria.mobile.ui.doctors.MyDoctorsScreen
 import com.memoria.mobile.ui.health.HealthScreen
 import com.memoria.mobile.ui.help.HelpScreen
 import com.memoria.mobile.ui.history.HistoryScreen
+import com.memoria.mobile.ui.legal.PrivacyPolicyScreen
+import com.memoria.mobile.ui.legal.PrivacyScreen
 import com.memoria.mobile.ui.home.DashboardScreen
 import com.memoria.mobile.ui.meds.MedicationDetailsScreen
 import com.memoria.mobile.ui.meds.MedicationEditScreen
@@ -98,7 +100,13 @@ private fun AuthFlow(onAuthenticated: () -> Unit) {
             RegisterScreen(
                 onRegistered = onAuthenticated,
                 onBack = { nav.popBackStack() },
+                onOpenPolicy = { nav.navigate(Routes.PRIVACY_POLICY) },
             )
+        }
+        // The policy lives in the auth graph as well: a consent box the user
+        // cannot read before ticking is not informed consent.
+        composable(Routes.PRIVACY_POLICY) {
+            PrivacyPolicyScreen(onBack = { nav.popBackStack() })
         }
     }
 }
@@ -215,6 +223,16 @@ private fun MainFlow(onLogout: () -> Unit) {
             composable(Routes.PROFILE) { ProfileScreen(onBack = back) }
             composable(Routes.PLANS) { PlansScreen(onBack = back, checkoutUrl = checkoutUrl) }
             composable(Routes.HELP) { HelpScreen(onBack = back) }
+            composable(Routes.PRIVACY) {
+                PrivacyScreen(
+                    onBack = back,
+                    onOpenPolicy = { nav.navigate(Routes.PRIVACY_POLICY) },
+                    // Erasing the account ends the session, so the whole main
+                    // graph is disposed exactly as it is on logout.
+                    onAccountDeleted = onLogout,
+                )
+            }
+            composable(Routes.PRIVACY_POLICY) { PrivacyPolicyScreen(onBack = back) }
             composable(Routes.OPTIMIZATION) { OptimizationGuideScreen(onBack = back) }
             composable(Routes.ADMIN) { AdminScreen(onBack = back) }
             composable(Routes.WHATSAPP) {

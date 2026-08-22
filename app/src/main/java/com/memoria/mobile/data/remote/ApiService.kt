@@ -1,5 +1,6 @@
 package com.memoria.mobile.data.remote
 
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -78,6 +79,21 @@ interface ApiService {
     // Admin (owner dashboard — 403 for a non-admin account)
     @GET("admin/owner-stats")
     suspend fun ownerStats(): Response<Envelope<OwnerStats>>
+
+    // LGPD — direitos do titular
+    /**
+     * Portability export. Returned as a raw body on purpose: the point of the
+     * right of access is to hand over everything the server holds, so modelling
+     * it into DTOs would quietly drop any field the app does not know about.
+     */
+    @GET("auth/export-data")
+    suspend fun exportData(): Response<ResponseBody>
+
+    @PUT("auth/consent")
+    suspend fun updateConsent(@Body body: ConsentRequest): Response<Envelope<UserData>>
+
+    @DELETE("auth/account")
+    suspend fun deleteAccount(): Response<SimpleResponse>
 
     // Health (absolute URL: `<root>/health`, outside the /api prefix)
     @GET

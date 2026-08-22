@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
@@ -60,6 +61,7 @@ private val ENTRIES = listOf(
     MoreEntry(Routes.WHATSAPP, "WhatsApp", "Conexão e eventos de mensagens", Icons.AutoMirrored.Filled.Chat),
     MoreEntry(Routes.SETTINGS, "Configurações", "Conta, servidor e sessão", Icons.Filled.Settings),
     MoreEntry(Routes.OPTIMIZATION, "Otimização do App", "Bateria, alertas e tela bloqueada", Icons.Filled.BatteryChargingFull),
+    MoreEntry(Routes.PRIVACY, "Privacidade e dados", "Exportar; consentimento e apagar conta (LGPD)", Icons.Filled.Policy),
     MoreEntry(Routes.HELP, "Ajuda e Tutorial", "Como usar o MemorIA", Icons.AutoMirrored.Filled.HelpOutline),
     MoreEntry(Routes.ADMIN, "Painel do Proprietário", "Métricas do MemorIA", Icons.Filled.Insights, adminOnly = true),
 )

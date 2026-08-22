@@ -78,6 +78,7 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         password: String,
         email: String,
         phone: String,
+        lgpdConsent: Boolean,
         onSuccess: () -> Unit,
     ) {
         when {
@@ -85,11 +86,17 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 _state.value = _state.value.copy(error = "Informe o nome completo.")
                 return
             }
-            !validate(cpf, password) -> return
+            !lgpdConsent -> {
+                _state.value = _state.value.copy(
+                    error = "Para criar a conta é preciso aceitar a política de privacidade (LGPD).",
+                )
+                return
+            }
+            !validate(cpf, password, minPassword = REGISTER_MIN_PASSWORD) -> return
         }
         _state.value = _state.value.copy(loading = true, error = null, serverMessage = null)
         viewModelScope.launch {
-            when (val r = repo.register(cpf, name, password, email, phone)) {
+            when (val r = repo.register(cpf, name, password, email, phone, lgpdConsent)) {
                 is ApiResult.Ok -> {
                     _state.value = _state.value.copy(loading = false, error = null)
                     onSuccess()
@@ -161,16 +168,32 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         }
     }
 
-    private fun validate(cpf: String, password: String): Boolean {
+    /**
+     * [minPassword] differs by flow on purpose: the server demands 8 characters
+     * to REGISTER, but login only requires a non-empty password. Validating
+     * login against 8 would lock out anyone whose account predates that rule.
+     */
+    private fun validate(cpf: String, password: String, minPassword: Int = 1): Boolean {
         val digits = cpf.filter { it.isDigit() }
         if (digits.length != 11) {
             _state.value = _state.value.copy(error = "CPF deve ter 11 dígitos.")
             return false
         }
-        if (password.length < 6) {
-            _state.value = _state.value.copy(error = "A senha deve ter ao menos 6 caracteres.")
+        if (password.length < minPassword) {
+            _state.value = _state.value.copy(
+                error = if (minPassword > 1) {
+                    "A senha deve ter ao menos $minPassword caracteres."
+                } else {
+                    "Informe a sua senha."
+                },
+            )
             return false
         }
         return true
+    }
+
+    companion object {
+        /** Mirrors the backend rule (`min: 8` on POST /api/auth/register). */
+        const val REGISTER_MIN_PASSWORD = 8
     }
 }

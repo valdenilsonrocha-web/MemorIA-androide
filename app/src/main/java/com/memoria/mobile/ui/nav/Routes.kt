@@ -34,6 +34,10 @@ object Routes {
     const val WHATSAPP = "whatsapp"
     const val SETTINGS = "settings"
 
+    /** LGPD: reachable before login too, from the sign-up form. */
+    const val PRIVACY = "privacy"
+    const val PRIVACY_POLICY = "privacy_policy"
+
     fun medEdit(id: String?): String = if (id == null) "$MED_EDIT/new" else "$MED_EDIT/$id"
 
     fun medDetails(id: String): String = "$MED_DETAILS/$id"

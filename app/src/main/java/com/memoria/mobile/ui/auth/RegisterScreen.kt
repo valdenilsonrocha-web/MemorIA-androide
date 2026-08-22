@@ -1,7 +1,9 @@
 package com.memoria.mobile.ui.auth
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -20,12 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -38,6 +43,7 @@ import com.memoria.mobile.ui.common.repoViewModel
 fun RegisterScreen(
     onRegistered: () -> Unit,
     onBack: () -> Unit,
+    onOpenPolicy: () -> Unit,
 ) {
     val vm = repoViewModel { AuthViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -47,6 +53,7 @@ fun RegisterScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var lgpdConsent by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -102,18 +109,31 @@ fun RegisterScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Senha (mín. 6 caracteres)") },
+                label = { Text("Senha (mín. ${AuthViewModel.REGISTER_MIN_PASSWORD} caracteres)") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text(
-                "Ao criar a conta você aceita a política de privacidade (LGPD).",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // The consent is now the user's, not a constant in the request: they
+            // tick it, and they can read what they are agreeing to first.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { lgpdConsent = !lgpdConsent },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Checkbox(checked = lgpdConsent, onCheckedChange = { lgpdConsent = it })
+                Text(
+                    "Li e aceito a política de privacidade (LGPD).",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            TextButton(onClick = onOpenPolicy) {
+                Text("Ler a política de privacidade")
+            }
 
             if (state.error != null) {
                 Text(
@@ -124,8 +144,8 @@ fun RegisterScreen(
             }
 
             Button(
-                onClick = { vm.register(cpf, name, password, email, phone, onRegistered) },
-                enabled = !state.loading,
+                onClick = { vm.register(cpf, name, password, email, phone, lgpdConsent, onRegistered) },
+                enabled = !state.loading && lgpdConsent,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (state.loading) {

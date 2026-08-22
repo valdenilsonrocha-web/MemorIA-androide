@@ -7,6 +7,7 @@ import com.memoria.mobile.data.remote.ApiProvider
 import com.memoria.mobile.data.remote.ApiService
 import com.memoria.mobile.data.remote.AuthData
 import com.memoria.mobile.data.remote.Caregiver
+import com.memoria.mobile.data.remote.ConsentRequest
 import com.memoria.mobile.data.remote.Envelope
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.HistoryRequest
@@ -160,12 +161,19 @@ class MemoriaRepository(
         return result.alsoReschedule()
     }
 
+    /**
+     * [lgpdConsent] is the box the user actually ticked, never a constant. It was
+     * hard-coded to `true` before, which meant the app claimed a consent its
+     * owner had never been shown — for a Brazilian health app that is not
+     * consent at all, whatever the server records.
+     */
     suspend fun register(
         cpf: String,
         name: String,
         password: String,
         email: String?,
         phone: String?,
+        lgpdConsent: Boolean,
     ): ApiResult<User> {
         val result = authCall {
             api().register(
@@ -175,7 +183,7 @@ class MemoriaRepository(
                     password = password,
                     email = email?.trim()?.ifBlank { null },
                     phone = phone?.let { digitsOnly(it) }?.ifBlank { null },
-                    lgpdConsent = true,
+                    lgpdConsent = lgpdConsent,
                 )
             )
         }
@@ -269,6 +277,53 @@ class MemoriaRepository(
     suspend fun ownerStats(): ApiResult<OwnerStats> = call {
         val r = api().ownerStats()
         envelopeValue(r) { it }
+    }
+
+    // ---- LGPD (direitos do titular) ----
+
+    /**
+     * Everything the server holds about the account, as raw JSON bytes.
+     *
+     * Deliberately not parsed: the right of access means handing over the whole
+     * record, and re-serialising it through the app's DTOs would silently drop
+     * any field this build does not model.
+     */
+    suspend fun exportData(): ApiResult<ByteArray> = call {
+        val r = api().exportData()
+        val bytes = r.body()?.bytes()
+        if (r.isSuccessful && bytes != null) {
+            ApiResult.Ok(bytes)
+        } else {
+            ApiResult.Err(serverError(r))
+        }
+    }
+
+    /** Grants or revokes LGPD consent (`PUT /api/auth/consent`). */
+    suspend fun setConsent(granted: Boolean): ApiResult<User> = call {
+        val r = api().updateConsent(ConsentRequest(consent = granted))
+        envelopeValue(r) { it.user }
+    }
+
+    /**
+     * Erases the account and every record attached to it on the server, then
+     * wipes what the phone kept — saved password, health notes, care network —
+     * and cancels the alarms. A deletion that leaves the old data on the device
+     * is not a deletion.
+     */
+    suspend fun deleteAccount(): ApiResult<Unit> = call {
+        val result = simpleResult(api().deleteAccount())
+        if (result is ApiResult.Ok) {
+            credentials.clear()
+            prefs.setString(KEY_SNOOZE, null)
+            local.saveVitalSigns(emptyList())
+            local.saveWellbeing(emptyList())
+            local.saveSafety(emptyList())
+            local.saveCareContacts(emptyList())
+            local.saveConsultations(emptyList())
+            local.saveEmergencyContacts(emptyList())
+            logout()
+        }
+        result
     }
 
     // ---- Connectivity ----
