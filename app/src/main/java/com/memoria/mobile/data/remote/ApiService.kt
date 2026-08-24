@@ -80,6 +80,12 @@ interface ApiService {
     @GET("admin/owner-stats")
     suspend fun ownerStats(): Response<Envelope<OwnerStats>>
 
+    // Assinatura nativa: envia SÓ o token do cartão, nunca o cartão.
+    @POST("payments/subscribe")
+    suspend fun subscribeWithCard(
+        @Body body: SubscribeRequest,
+    ): Response<Envelope<SubscriptionStatusData>>
+
     // Checkout / assinatura
     @POST("payments/create-checkout-session")
     suspend fun createCheckoutSession(

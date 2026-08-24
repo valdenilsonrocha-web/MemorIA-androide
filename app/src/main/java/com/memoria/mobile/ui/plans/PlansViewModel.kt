@@ -4,9 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
+import com.memoria.mobile.data.remote.CardInput
 import com.memoria.mobile.data.remote.PaymentConfig
 import com.memoria.mobile.data.remote.User
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,22 +26,24 @@ data class PlansUiState(
     val config: PaymentConfig? = null,
     val selected: BillingCycle = BillingCycle.ANNUAL,
     val payerEmail: String = "",
-    /** Gateway checkout link, once opened; kept so the status can be polled. */
-    val checkoutUrl: String? = null,
-    val sessionId: String? = null,
-    /**
-     * Host of the gateway back_url. When the checkout navigates there the flow
-     * is over, and the WebView hands control back to the native screen instead
-     * of letting the site render.
-     */
-    val returnHost: String? = null,
-    val awaitingConfirmation: Boolean = false,
+    // Card form. Held only while the screen is open and cleared the moment the
+    // card becomes a token — nothing here is ever persisted.
+    val cardNumber: String = "",
+    val holderName: String = "",
+    val expiry: String = "",
+    val securityCode: String = "",
+    val holderDocument: String = "",
+    val cardNumberError: Boolean = false,
+    val holderNameError: Boolean = false,
+    val expiryError: Boolean = false,
+    val securityCodeError: Boolean = false,
+    val holderDocumentError: Boolean = false,
 ) {
     val isPremium: Boolean get() = user?.isPremium == true
 
     val subscriptionStatus: String? get() = user?.subscriptionStatus
 
-    /** Falls back to the site's published prices if the config call fails. */
+    /** Falls back to the published prices if the config call fails. */
     val monthlyPrice: String
         get() = config?.plans?.monthly?.displayPrice ?: "R$ 14,90/mês"
 
@@ -50,8 +52,8 @@ data class PlansUiState(
 
     val trialDays: Int get() = 7
 
-    val canCheckout: Boolean
-        get() = !working && payerEmail.contains("@") && payerEmail.contains(".")
+    /** Without it the app cannot tokenise, so the form would be a dead end. */
+    val canPay: Boolean get() = !config?.publicKey.isNullOrBlank()
 }
 
 class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -68,9 +70,9 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 loading = false,
                 user = user,
                 config = config,
-                // The account's own e-mail is the sensible default payer, so the
-                // common case needs no typing at all.
+                // The account's own e-mail is the sensible default payer.
                 payerEmail = _state.value.payerEmail.ifBlank { user?.email.orEmpty() },
+                holderName = _state.value.holderName.ifBlank { user?.name.orEmpty() },
             )
         }
     }
@@ -79,79 +81,115 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
 
     fun onPayerEmail(v: String) { _state.value = _state.value.copy(payerEmail = v, error = null) }
 
+    // Raw digits only. Formatting happens in the field's VisualTransformation, so
+    // the caret never fights the formatter.
+    fun onCardNumber(v: String) {
+        _state.value = _state.value.copy(
+            cardNumber = v.filter { it.isDigit() }.take(19),
+            cardNumberError = false,
+            error = null,
+        )
+    }
+
+    fun onHolderName(v: String) {
+        _state.value = _state.value.copy(holderName = v, holderNameError = false, error = null)
+    }
+
+    fun onExpiry(v: String) {
+        _state.value = _state.value.copy(
+            expiry = v.filter { it.isDigit() }.take(4),
+            expiryError = false,
+            error = null,
+        )
+    }
+
+    fun onSecurityCode(v: String) {
+        _state.value = _state.value.copy(
+            securityCode = v.filter { it.isDigit() }.take(4),
+            securityCodeError = false,
+            error = null,
+        )
+    }
+
+    fun onHolderDocument(v: String) {
+        _state.value = _state.value.copy(
+            holderDocument = v.filter { it.isDigit() }.take(11),
+            holderDocumentError = false,
+            error = null,
+        )
+    }
+
     /**
-     * Asks the backend to open a Mercado Pago subscription. The screen then shows
-     * the gateway's page inside the app, never in a browser.
+     * The whole purchase, without leaving the app: validate locally, swap the
+     * card for a Mercado Pago token on the device, then let the MemorIA backend
+     * create the subscription from that token alone.
      */
-    fun startCheckout() {
+    fun subscribe() {
         val s = _state.value
-        if (!s.canCheckout) {
+
+        val expiry = CardValidation.parseExpiry(s.expiry)
+        val invalid = s.copy(
+            cardNumberError = !CardValidation.isCardNumberPlausible(s.cardNumber),
+            holderNameError = !CardValidation.isHolderNamePlausible(s.holderName),
+            expiryError = expiry == null,
+            securityCodeError = !CardValidation.isSecurityCodePlausible(s.securityCode),
+            holderDocumentError = !CardValidation.isCpfValid(s.holderDocument),
+        )
+        if (invalid.cardNumberError || invalid.holderNameError || invalid.expiryError ||
+            invalid.securityCodeError || invalid.holderDocumentError
+        ) {
+            _state.value = invalid.copy(error = "Confira os dados destacados e tente de novo.")
+            return
+        }
+        if (!s.payerEmail.contains("@")) {
             _state.value = s.copy(error = "Informe um e-mail válido para a cobrança.")
             return
         }
+        val publicKey = s.config?.publicKey
+        if (publicKey.isNullOrBlank()) {
+            _state.value = s.copy(
+                error = "Pagamento indisponível: o servidor não informou a chave do Mercado Pago.",
+            )
+            return
+        }
+
         _state.value = s.copy(working = true, error = null)
         viewModelScope.launch {
-            when (val r = repo.createCheckout(s.selected.apiValue, s.payerEmail)) {
-                is ApiResult.Ok -> {
-                    val url = r.value.url
-                    if (url.isNullOrBlank()) {
-                        _state.value = _state.value.copy(
-                            working = false,
-                            error = "O servidor não devolveu o link de pagamento.",
-                        )
-                    } else {
-                        _state.value = _state.value.copy(
-                            working = false,
-                            checkoutUrl = url,
-                            sessionId = r.value.sessionId,
-                            returnHost = returnHostOf(repo.currentBaseUrl()),
-                        )
-                    }
-                }
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+            val card = CardInput(
+                number = s.cardNumber,
+                holderName = s.holderName,
+                expiryMonth = expiry!!.first,
+                expiryYear = expiry.second,
+                securityCode = s.securityCode,
+                holderDocument = s.holderDocument,
+            )
+
+            val token = repo.tokenizeCard(publicKey, card).getOrElse { failure ->
+                _state.value = _state.value.copy(
+                    working = false,
+                    error = failure.message ?: "Não foi possível validar o cartão.",
+                )
+                return@launch
             }
-        }
-    }
 
-    fun consumeCheckoutUrl() { _state.value = _state.value.copy(checkoutUrl = null) }
+            // The card is now a token; drop the raw data from state immediately
+            // rather than leaving it in memory for the rest of the session.
+            clearCardFields()
 
-    /**
-     * Called when the user comes back from the gateway.
-     *
-     * Mercado Pago confirms a subscription asynchronously (its webhook reaches
-     * the backend a moment later), so a single check right after the tab closes
-     * would usually say "not yet". It polls a few times before giving up, and a
-     * "not confirmed" answer is reported as pending rather than as an error.
-     */
-    fun confirmAfterCheckout() {
-        val sessionId = _state.value.sessionId ?: return refreshUser()
-        _state.value = _state.value.copy(awaitingConfirmation = true)
-        viewModelScope.launch {
-            repeat(CONFIRMATION_ATTEMPTS) { attempt ->
-                if (attempt > 0) delay(CONFIRMATION_DELAY_MS)
-                val status = repo.subscriptionStatus(sessionId)
-                if (status is ApiResult.Ok) {
+            when (val r = repo.subscribeWithCard(s.selected.apiValue, token, s.payerEmail)) {
+                is ApiResult.Ok -> {
                     val user = (repo.me() as? ApiResult.Ok)?.value
                     _state.value = _state.value.copy(
-                        awaitingConfirmation = false,
+                        working = false,
                         user = user ?: _state.value.user,
-                        sessionId = null,
-                        message = "Assinatura confirmada. Bem-vindo ao Premium!",
+                        message = "Assinatura ativa. Bem-vindo ao Premium!",
                     )
-                    return@launch
                 }
+                is ApiResult.Err -> _state.value = _state.value.copy(
+                    working = false,
+                    error = r.message,
+                )
             }
-            val user = (repo.me() as? ApiResult.Ok)?.value
-            _state.value = _state.value.copy(
-                awaitingConfirmation = false,
-                user = user ?: _state.value.user,
-                message = if (user?.isPremium == true) {
-                    "Assinatura confirmada. Bem-vindo ao Premium!"
-                } else {
-                    "Ainda não recebemos a confirmação do pagamento. Assim que o Mercado " +
-                        "Pago confirmar, o Premium é liberado sozinho."
-                },
-            )
         }
     }
 
@@ -172,29 +210,22 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
         }
     }
 
-    private fun refreshUser() {
-        viewModelScope.launch {
-            (repo.me() as? ApiResult.Ok)?.value?.let {
-                _state.value = _state.value.copy(user = it)
-            }
-        }
+    private fun clearCardFields() {
+        _state.value = _state.value.copy(
+            cardNumber = "",
+            expiry = "",
+            securityCode = "",
+            holderDocument = "",
+        )
+    }
+
+    override fun onCleared() {
+        clearCardFields()
+        super.onCleared()
     }
 
     fun consumeMessage() { _state.value = _state.value.copy(message = null) }
     fun clearError() { _state.value = _state.value.copy(error = null) }
-
-    /**
-     * The gateway sends the user back to the MemorIA site when it is done. The
-     * app never lets that page render — it matches the host and closes the
-     * checkout instead, so the flow ends on a native screen.
-     */
-    private fun returnHostOf(baseUrl: String): String? =
-        runCatching { android.net.Uri.parse(baseUrl).host }.getOrNull()
-
-    private companion object {
-        const val CONFIRMATION_ATTEMPTS = 5
-        const val CONFIRMATION_DELAY_MS = 3_000L
-    }
 }
 
 /** What Premium unlocks, in the order the web page lists it. */

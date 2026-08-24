@@ -54,9 +54,12 @@ import com.memoria.mobile.ui.theme.RedMiss
 /**
  * "Planos" — the web `plansPage`, done natively.
  *
- * Plan choice, payer e-mail, subscription status and cancellation are all native.
- * Only the card authorisation is Mercado Pago's own page, and it renders inside
- * this screen: the user never leaves MemorIA, and MemorIA never touches card data.
+ * Everything is native and talks only to the MemorIA backend: plan choice, card
+ * form, subscription status and cancellation. There is no browser, no WebView and
+ * no page from the website anywhere in the flow.
+ *
+ * The card is exchanged for a Mercado Pago token on the device, so the number
+ * never reaches the MemorIA backend and is never stored.
  */
 @Composable
 fun PlansScreen(onBack: () -> Unit) {
@@ -66,19 +69,6 @@ fun PlansScreen(onBack: () -> Unit) {
     var confirmCancel by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.load() }
-
-    // The checkout takes over this screen instead of leaving the app. Returning
-    // is a native transition back to the plan list, never an app switch.
-    val checkoutUrl = state.checkoutUrl
-    if (checkoutUrl != null) {
-        CheckoutWebView(
-            url = checkoutUrl,
-            returnHost = state.returnHost,
-            onFinished = { vm.consumeCheckoutUrl(); vm.confirmAfterCheckout() },
-            onCancel = { vm.consumeCheckoutUrl(); vm.confirmAfterCheckout() },
-        )
-        return
-    }
 
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() }
@@ -104,21 +94,6 @@ fun PlansScreen(onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (state.awaitingConfirmation) {
-                Card(Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier.padding(16.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                        Text(
-                            "  Confirmando o pagamento...",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    }
-                }
-            }
-
             if (state.isPremium) {
                 PremiumStatusCard(
                     status = state.subscriptionStatus,
@@ -165,45 +140,7 @@ fun PlansScreen(onBack: () -> Unit) {
                     }
                 }
 
-                SectionCard("Dados da cobrança", icon = Icons.Filled.CreditCard) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = state.payerEmail,
-                            onValueChange = vm::onPayerEmail,
-                            label = { Text("E-mail para a cobrança") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.Lock,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                "  O cartão é digitado na página segura do Mercado Pago, que abre " +
-                                    "aqui dentro do app. O MemorIA nunca vê os dados do seu cartão.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Button(
-                            onClick = vm::startCheckout,
-                            enabled = state.canCheckout,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            if (state.working) {
-                                CircularProgressIndicator(
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(20.dp).padding(end = 4.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                )
-                            }
-                            Text("Assinar Premium")
-                        }
-                    }
-                }
+                CardFormSection(state, vm)
             }
         }
     }

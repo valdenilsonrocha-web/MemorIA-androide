@@ -7,9 +7,10 @@ import com.memoria.mobile.data.remote.ApiProvider
 import com.memoria.mobile.data.remote.ApiService
 import com.memoria.mobile.data.remote.AuthData
 import com.memoria.mobile.data.remote.Caregiver
-import com.memoria.mobile.data.remote.CheckoutRequest
-import com.memoria.mobile.data.remote.CheckoutSession
+import com.memoria.mobile.data.remote.CardInput
+import com.memoria.mobile.data.remote.CardTokenizer
 import com.memoria.mobile.data.remote.ConsentRequest
+import com.memoria.mobile.data.remote.SubscribeRequest
 import com.memoria.mobile.data.remote.SubscriptionStatusData
 import com.memoria.mobile.data.remote.SubscriptionStatusRequest
 import com.memoria.mobile.data.remote.Envelope
@@ -67,6 +68,9 @@ class MemoriaRepository(
 
     /** Keystore-encrypted CPF + password, for the "remember me" login. */
     val credentials: CredentialStore = CredentialStore(prefs)
+
+    /** Card-to-token exchange with Mercado Pago, on its own unauthenticated client. */
+    private val cardTokenizer = CardTokenizer()
 
     /**
      * Fired whenever something that affects the reminder schedule changes — a
@@ -286,23 +290,31 @@ class MemoriaRepository(
     // ---- Assinatura ----
 
     /**
-     * Opens a Mercado Pago subscription and returns its hosted checkout link.
+     * Subscribes with a card the app already turned into a Mercado Pago token.
      *
-     * The card itself is always typed on the gateway's page — that is true of
-     * the website as well, and it is what keeps MemorIA out of PCI-DSS scope.
-     * Everything around it (plan, payer e-mail, status, cancellation) is the
-     * app's own.
+     * The whole flow is native: the card is typed on a MemorIA screen, swapped
+     * for a token directly with Mercado Pago on the device, and only the token
+     * travels to the MemorIA backend — which rejects the request outright if it
+     * ever carries card fields. No browser, no website, no page in between.
      */
-    suspend fun createCheckout(plan: String, payerEmail: String): ApiResult<CheckoutSession> = call {
-        val r = api().createCheckoutSession(
-            CheckoutRequest(
+    suspend fun subscribeWithCard(
+        plan: String,
+        cardTokenId: String,
+        payerEmail: String,
+    ): ApiResult<SubscriptionStatusData> = call {
+        val r = api().subscribeWithCard(
+            SubscribeRequest(
                 plan = plan,
-                customerEmail = payerEmail.trim(),
-                invoiceEmail = payerEmail.trim(),
+                cardTokenId = cardTokenId,
+                payerEmail = payerEmail.trim(),
             )
         )
         envelopeValue(r) { it }
     }
+
+    /** Tokenises a card on the device; the number never reaches this backend. */
+    suspend fun tokenizeCard(publicKey: String, card: CardInput): Result<String> =
+        cardTokenizer.tokenize(publicKey, card)
 
     /**
      * Confirms with the gateway whether the subscription went through.

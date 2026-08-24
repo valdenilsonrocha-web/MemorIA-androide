@@ -227,6 +227,8 @@ data class PrescriptionRequest(
 data class PaymentConfig(
     val gateway: String = "stripe",
     val configured: Boolean = false,
+    /** Mercado Pago public key — the app tokenises the card with it. */
+    val publicKey: String? = null,
     val plans: PaymentPlans? = null,
 )
 
@@ -358,4 +360,15 @@ data class SubscriptionStatusData(
     val sessionId: String? = null,
     val trialDays: Int = 7,
     val subscriptionStatus: String? = null,
+)
+
+/**
+ * Native subscription. Carries the Mercado Pago card token — never the card.
+ * The backend rejects any request that contains card fields.
+ */
+@JsonClass(generateAdapter = true)
+data class SubscribeRequest(
+    val plan: String,
+    val cardTokenId: String,
+    val payerEmail: String,
 )
