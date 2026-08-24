@@ -85,7 +85,14 @@ fun DashboardScreen(
         topBar = { TopAppBar(title = { Text("Início") }) },
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAdd) {
+            // Lifted clear of the bottom navigation bar. This Scaffold is nested
+            // inside the one that draws the tab bar, so without the offset the
+            // FAB lands underneath it — invisible, untappable, and the only way
+            // to add a medication.
+            FloatingActionButton(
+                onClick = onAdd,
+                modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = "Adicionar medicamento")
             }
         },

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
 import com.memoria.mobile.data.remote.MedicationRequest
+import com.memoria.mobile.ui.common.PlanLimits
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +24,8 @@ data class MedEditState(
     val stock: String = "0",
     val instructions: String = "",
     val saved: Boolean = false,
+    /** Set when the free plan is what stopped the save, so the UI can offer Premium. */
+    val blockedByPlan: Boolean = false,
 )
 
 class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -110,6 +113,18 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
+            // The free plan caps active medications, exactly as the website does.
+            // The server does NOT enforce this one, so skipping the check here
+            // meant the phone handed out for free what the site charges for.
+            if (editingId == null && !allowedToAdd()) {
+                _state.value = _state.value.copy(
+                    saving = false,
+                    error = PlanLimits.medicationLimitMessage(),
+                    blockedByPlan = true,
+                )
+                return@launch
+            }
+
             val result = editingId?.let { repo.updateMedication(it, request) }
                 ?: repo.createMedication(request)
             when (result) {
@@ -118,4 +133,17 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
             }
         }
     }
+
+    /**
+     * Counts what the SERVER currently holds rather than trusting a screen's
+     * cached list — two devices adding at the same time would otherwise both
+     * believe there was room.
+     */
+    private suspend fun allowedToAdd(): Boolean {
+        val user = (repo.me() as? ApiResult.Ok)?.value
+        val active = (repo.medications() as? ApiResult.Ok)?.value?.count { it.active } ?: 0
+        return PlanLimits.canAddMedication(user, active)
+    }
+
+    fun clearPlanBlock() { _state.value = _state.value.copy(blockedByPlan = false, error = null) }
 }

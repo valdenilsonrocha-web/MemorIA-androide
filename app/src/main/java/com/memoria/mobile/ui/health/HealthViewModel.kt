@@ -7,11 +7,15 @@ import com.memoria.mobile.data.local.CareContact
 import com.memoria.mobile.data.local.SafetyRecord
 import com.memoria.mobile.data.local.VitalSignsRecord
 import com.memoria.mobile.data.local.WellbeingRecord
+import com.memoria.mobile.data.remote.ConsultationPayload
+import com.memoria.mobile.data.remote.VitalSignsPayload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /** The three panels of the web `healthPage`. */
@@ -134,6 +138,7 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 glucose = "", hba1c = "", temperature = "",
                 message = "Sinais vitais salvos!",
             )
+            pushToServer()
         }
     }
 
@@ -205,6 +210,47 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
 
     fun consumeMessage() { _state.value = _state.value.copy(message = null) }
     fun clearError() { _state.value = _state.value.copy(error = null) }
+
+    /**
+     * Mirrors the measurements up to the server, which keeps them for the
+     * automated e-mail report — the web app does the same on every save.
+     *
+     * A failure is deliberately silent: the record is already safe on the phone,
+     * and this screen works offline. Nagging about a sync the user did not ask
+     * for would be noise; the next save retries with the full list anyway,
+     * because the server replaces rather than appends.
+     */
+    private suspend fun pushToServer() {
+        val vitals = _state.value.vitalSigns.map {
+            VitalSignsPayload(
+                date = it.date,
+                systolic = it.systolic,
+                diastolic = it.diastolic,
+                heartRate = it.heartRate,
+                spo2 = it.spo2,
+                glucose = it.glucose,
+                glucoseContext = it.glucoseContext,
+                hba1c = it.hba1c,
+                temperature = it.temperature,
+            )
+        }
+        val consultations = repo.local.consultations().map {
+            ConsultationPayload(
+                id = it.id,
+                dateTime = isoFromLocal(it.dateTime),
+                professional = it.professional,
+                location = it.location,
+                notes = it.notes,
+            )
+        }
+        repo.syncHealthRecords(vitals, consultations)
+    }
+
+    /** `datetime-local` has no zone; the server wants a real instant. */
+    private fun isoFromLocal(raw: String): String = runCatching {
+        LocalDateTime.parse(raw).atZone(ZoneId.systemDefault()).toOffsetDateTime()
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    }.getOrDefault(raw)
 
     private fun nowIso(): String =
         OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)

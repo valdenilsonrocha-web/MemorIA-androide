@@ -7,6 +7,7 @@ import com.memoria.mobile.data.MemoriaRepository
 import com.memoria.mobile.data.remote.Prescription
 import com.memoria.mobile.data.remote.PrescriptionRequest
 import com.memoria.mobile.data.remote.User
+import com.memoria.mobile.ui.common.PlanLimits
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,12 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
 
     /** [imageData] is the `data:image/jpeg;base64,...` URL produced by the encoder. */
     fun upload(imageData: String?) {
+        // Paid feature, same as on the website, and the backend does not gate it
+        // — without this check the phone gave away what the site charges for.
+        if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
+            _state.value = _state.value.copy(error = PlanLimits.prescriptionLimitMessage())
+            return
+        }
         if (imageData == null) {
             _state.value = _state.value.copy(
                 error = "Não foi possível preparar a imagem. Tente outra foto.",

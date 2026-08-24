@@ -38,6 +38,9 @@ object Routes {
     const val PRIVACY = "privacy"
     const val PRIVACY_POLICY = "privacy_policy"
 
+    /** Recuperação de senha — vive no grafo de autenticação. */
+    const val FORGOT_PASSWORD = "forgot_password"
+
     fun medEdit(id: String?): String = if (id == null) "$MED_EDIT/new" else "$MED_EDIT/$id"
 
     fun medDetails(id: String): String = "$MED_DETAILS/$id"

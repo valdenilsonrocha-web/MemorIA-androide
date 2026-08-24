@@ -10,6 +10,10 @@ import com.memoria.mobile.data.remote.Caregiver
 import com.memoria.mobile.data.remote.CardInput
 import com.memoria.mobile.data.remote.CardTokenizer
 import com.memoria.mobile.data.remote.ConsentRequest
+import com.memoria.mobile.data.remote.ConsultationPayload
+import com.memoria.mobile.data.remote.ForgotPasswordRequest
+import com.memoria.mobile.data.remote.ResetPasswordRequest
+import com.memoria.mobile.data.remote.VitalSignsPayload
 import com.memoria.mobile.data.remote.SubscribeRequest
 import com.memoria.mobile.data.remote.SubscriptionStatusData
 import com.memoria.mobile.data.remote.SubscriptionStatusRequest
@@ -200,6 +204,44 @@ class MemoriaRepository(
             credentials.save(cpf, password)
         }
         return result.alsoReschedule()
+    }
+
+    /**
+     * Starts password recovery. The server answers the same way whether or not
+     * the account exists — deliberately, so the endpoint cannot be used to find
+     * out which CPFs are registered. The screen repeats that wording.
+     */
+    suspend fun forgotPassword(cpf: String, email: String): ApiResult<Unit> = call {
+        simpleResult(
+            api().forgotPassword(
+                ForgotPasswordRequest(cpf = digitsOnly(cpf), email = email.trim().lowercase())
+            )
+        )
+    }
+
+    /** Finishes recovery with the token the user received by e-mail. */
+    suspend fun resetPassword(token: String, newPassword: String): ApiResult<Unit> = call {
+        simpleResult(
+            api().resetPassword(ResetPasswordRequest(token = token.trim(), newPassword = newPassword))
+        )
+    }
+
+    /**
+     * Pushes the phone's health records up so the automated e-mail report has
+     * something to report. The server accepts them but never returns them, so
+     * this is one-way on purpose — the device stays the readable copy.
+     */
+    suspend fun syncHealthRecords(
+        vitalSigns: List<VitalSignsPayload>,
+        consultations: List<ConsultationPayload>,
+    ): ApiResult<User> = call {
+        val r = api().updateProfile(
+            ProfileUpdateRequest(
+                healthVitalSigns = vitalSigns,
+                medicalConsultations = consultations,
+            )
+        )
+        envelopeValue(r) { it.user }
     }
 
     suspend fun me(): ApiResult<User> = call {

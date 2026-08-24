@@ -33,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.memoria.mobile.ui.admin.AdminScreen
+import com.memoria.mobile.ui.auth.ForgotPasswordScreen
 import com.memoria.mobile.ui.auth.LoginScreen
 import com.memoria.mobile.ui.auth.RegisterScreen
 import com.memoria.mobile.ui.calendar.CalendarScreen
@@ -94,6 +95,13 @@ private fun AuthFlow(onAuthenticated: () -> Unit) {
             LoginScreen(
                 onLoggedIn = onAuthenticated,
                 onRegister = { nav.navigate(Routes.REGISTER) },
+                onForgotPassword = { nav.navigate(Routes.FORGOT_PASSWORD) },
+            )
+        }
+        composable(Routes.FORGOT_PASSWORD) {
+            ForgotPasswordScreen(
+                onBack = { nav.popBackStack() },
+                onFinished = { nav.popBackStack() },
             )
         }
         composable(Routes.REGISTER) {

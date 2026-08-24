@@ -123,7 +123,7 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             onClick = { takePicture.launch(null) },
-                            enabled = !state.uploading,
+                            enabled = !state.uploading && state.isPremium,
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Filled.PhotoCamera, contentDescription = null)
@@ -135,7 +135,7 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                                 )
                             },
-                            enabled = !state.uploading,
+                            enabled = !state.uploading && state.isPremium,
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Filled.PhotoLibrary, contentDescription = null)

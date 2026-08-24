@@ -174,6 +174,7 @@ class MyDoctorsViewModel(private val repo: MemoriaRepository) : ViewModel() {
             ).sortedBy { it.dateTime }
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
+            pushConsultations(updated)
             _state.value = _state.value.copy(
                 consultations = updated,
                 consultationDateTime = "",
@@ -190,9 +191,50 @@ class MyDoctorsViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val updated = _state.value.consultations.filterNot { it.id == consultation.id }
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
+            pushConsultations(updated)
             _state.value = _state.value.copy(consultations = updated, message = "Consulta removida.")
         }
     }
+
+    /**
+     * Mirrors the consultations to the server, which feeds them into the
+     * automated e-mail report. Silent on failure: the phone already has them and
+     * this screen must keep working offline. The server replaces the whole list,
+     * so the next save repairs whatever a dropped request missed.
+     */
+    private suspend fun pushConsultations(items: List<MedicalConsultation>) {
+        repo.syncHealthRecords(
+            vitalSigns = repo.local.vitalSigns().map {
+                com.memoria.mobile.data.remote.VitalSignsPayload(
+                    date = it.date,
+                    systolic = it.systolic,
+                    diastolic = it.diastolic,
+                    heartRate = it.heartRate,
+                    spo2 = it.spo2,
+                    glucose = it.glucose,
+                    glucoseContext = it.glucoseContext,
+                    hba1c = it.hba1c,
+                    temperature = it.temperature,
+                )
+            },
+            consultations = items.map {
+                com.memoria.mobile.data.remote.ConsultationPayload(
+                    id = it.id,
+                    dateTime = isoFromLocal(it.dateTime),
+                    professional = it.professional,
+                    location = it.location,
+                    notes = it.notes,
+                )
+            },
+        )
+    }
+
+    /** `datetime-local` has no zone; the server wants a real instant. */
+    private fun isoFromLocal(raw: String): String = runCatching {
+        java.time.LocalDateTime.parse(raw).atZone(java.time.ZoneId.systemDefault())
+            .toOffsetDateTime()
+            .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    }.getOrDefault(raw)
 
     fun consumeMessage() { _state.value = _state.value.copy(message = null) }
     fun clearError() { _state.value = _state.value.copy(error = null) }

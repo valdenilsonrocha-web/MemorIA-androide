@@ -31,6 +31,13 @@ interface ApiService {
     @PUT("auth/profile")
     suspend fun updateProfile(@Body body: ProfileUpdateRequest): Response<Envelope<UserData>>
 
+    // Recuperação de senha
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body body: ForgotPasswordRequest): Response<SimpleResponse>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body body: ResetPasswordRequest): Response<SimpleResponse>
+
     // Medications
     @GET("medications")
     suspend fun getMedications(): Response<Envelope<MedicationListData>>

@@ -94,6 +94,13 @@ data class ProfileUpdateRequest(
     val city: String? = null,
     val state: String? = null,
     val caregivers: List<Caregiver>? = null,
+    /**
+     * Health records the server stores for the automated report. Null means
+     * "do not touch" — the server only overwrites a field the client sends, so
+     * a profile edit never wipes measurements it was not asked to change.
+     */
+    val healthVitalSigns: List<VitalSignsPayload>? = null,
+    val medicalConsultations: List<ConsultationPayload>? = null,
 )
 
 // ---- Medications ---------------------------------------------------------
@@ -371,4 +378,47 @@ data class SubscribeRequest(
     val plan: String,
     val cardTokenId: String,
     val payerEmail: String,
+)
+
+// ---- Recuperação de senha ----
+
+@JsonClass(generateAdapter = true)
+data class ForgotPasswordRequest(
+    val cpf: String,
+    val email: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class ResetPasswordRequest(
+    val token: String,
+    val newPassword: String,
+)
+
+// ---- Saúde sincronizada com o servidor ----
+
+/**
+ * Shapes accepted by `PUT /api/auth/profile`. The server sanitises and clamps
+ * every field, then keeps them for the automated e-mail report — it does NOT
+ * return them, so the phone stays the readable copy.
+ */
+@JsonClass(generateAdapter = true)
+data class VitalSignsPayload(
+    val date: String,
+    val systolic: Int? = null,
+    val diastolic: Int? = null,
+    val heartRate: Int? = null,
+    val spo2: Double? = null,
+    val glucose: Double? = null,
+    val glucoseContext: String = "random",
+    val hba1c: Double? = null,
+    val temperature: Double? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class ConsultationPayload(
+    val id: String,
+    val dateTime: String,
+    val professional: String,
+    val location: String = "",
+    val notes: String = "",
 )

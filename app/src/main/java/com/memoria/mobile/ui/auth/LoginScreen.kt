@@ -50,6 +50,7 @@ import com.memoria.mobile.ui.common.repoViewModel
 fun LoginScreen(
     onLoggedIn: () -> Unit,
     onRegister: () -> Unit,
+    onForgotPassword: () -> Unit,
 ) {
     val vm = repoViewModel { AuthViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -171,6 +172,10 @@ fun LoginScreen(
             } else {
                 Text("Entrar")
             }
+        }
+
+        TextButton(onClick = onForgotPassword, enabled = !state.loading) {
+            Text("Esqueci minha senha")
         }
 
         TextButton(onClick = onRegister, enabled = !state.loading) {
