@@ -111,6 +111,7 @@ dependencies {
     ksp(libs.moshi.kotlin.codegen)
 
     implementation(libs.androidx.datastore.preferences)
+
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.androidx.ui.tooling)

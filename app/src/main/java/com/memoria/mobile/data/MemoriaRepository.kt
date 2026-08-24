@@ -7,7 +7,11 @@ import com.memoria.mobile.data.remote.ApiProvider
 import com.memoria.mobile.data.remote.ApiService
 import com.memoria.mobile.data.remote.AuthData
 import com.memoria.mobile.data.remote.Caregiver
+import com.memoria.mobile.data.remote.CheckoutRequest
+import com.memoria.mobile.data.remote.CheckoutSession
 import com.memoria.mobile.data.remote.ConsentRequest
+import com.memoria.mobile.data.remote.SubscriptionStatusData
+import com.memoria.mobile.data.remote.SubscriptionStatusRequest
 import com.memoria.mobile.data.remote.Envelope
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.HistoryRequest
@@ -277,6 +281,42 @@ class MemoriaRepository(
     suspend fun ownerStats(): ApiResult<OwnerStats> = call {
         val r = api().ownerStats()
         envelopeValue(r) { it }
+    }
+
+    // ---- Assinatura ----
+
+    /**
+     * Opens a Mercado Pago subscription and returns its hosted checkout link.
+     *
+     * The card itself is always typed on the gateway's page — that is true of
+     * the website as well, and it is what keeps MemorIA out of PCI-DSS scope.
+     * Everything around it (plan, payer e-mail, status, cancellation) is the
+     * app's own.
+     */
+    suspend fun createCheckout(plan: String, payerEmail: String): ApiResult<CheckoutSession> = call {
+        val r = api().createCheckoutSession(
+            CheckoutRequest(
+                plan = plan,
+                customerEmail = payerEmail.trim(),
+                invoiceEmail = payerEmail.trim(),
+            )
+        )
+        envelopeValue(r) { it }
+    }
+
+    /**
+     * Confirms with the gateway whether the subscription went through.
+     *
+     * A 402 here is not a failure to report — it is Mercado Pago saying "not
+     * confirmed yet", which is the normal answer in the seconds after checkout.
+     */
+    suspend fun subscriptionStatus(sessionId: String): ApiResult<SubscriptionStatusData> = call {
+        val r = api().subscriptionStatus(SubscriptionStatusRequest(sessionId = sessionId))
+        envelopeValue(r) { it }
+    }
+
+    suspend fun cancelSubscription(): ApiResult<Unit> = call {
+        simpleResult(api().cancelSubscription())
     }
 
     // ---- LGPD (direitos do titular) ----

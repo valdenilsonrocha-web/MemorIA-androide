@@ -80,6 +80,20 @@ interface ApiService {
     @GET("admin/owner-stats")
     suspend fun ownerStats(): Response<Envelope<OwnerStats>>
 
+    // Checkout / assinatura
+    @POST("payments/create-checkout-session")
+    suspend fun createCheckoutSession(
+        @Body body: CheckoutRequest,
+    ): Response<Envelope<CheckoutSession>>
+
+    @POST("payments/subscription-status")
+    suspend fun subscriptionStatus(
+        @Body body: SubscriptionStatusRequest,
+    ): Response<Envelope<SubscriptionStatusData>>
+
+    @POST("payments/cancel-subscription")
+    suspend fun cancelSubscription(): Response<SimpleResponse>
+
     // LGPD — direitos do titular
     /**
      * Portability export. Returned as a raw body on purpose: the point of the

@@ -136,10 +136,6 @@ private fun MainFlow(onLogout: () -> Unit) {
         runCatching { context.reminderScheduler().reschedule() }
     }
 
-    // Subscriptions are completed on the MemorIA site, never in the app, so the
-    // Plans screen needs whatever backend the user is actually pointed at.
-    val checkoutUrl = LocalContext.current.repository().currentBaseUrl()
-
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -221,7 +217,7 @@ private fun MainFlow(onLogout: () -> Unit) {
                 PrescriptionsScreen(onBack = back, onOpenPlans = { nav.navigate(Routes.PLANS) })
             }
             composable(Routes.PROFILE) { ProfileScreen(onBack = back) }
-            composable(Routes.PLANS) { PlansScreen(onBack = back, checkoutUrl = checkoutUrl) }
+            composable(Routes.PLANS) { PlansScreen(onBack = back) }
             composable(Routes.HELP) { HelpScreen(onBack = back) }
             composable(Routes.PRIVACY) {
                 PrivacyScreen(

@@ -322,3 +322,40 @@ data class ConsentRequest(
     /** true grants, false revokes — the server stamps or clears `consentDate`. */
     val consent: Boolean,
 )
+
+// ---- Checkout (Mercado Pago) ----
+
+@JsonClass(generateAdapter = true)
+data class CheckoutRequest(
+    val plan: String,
+    val customerEmail: String,
+    val invoiceEmail: String,
+)
+
+/**
+ * `url` is the Mercado Pago `init_point` — the gateway's own hosted page, which
+ * is where the card is typed on the website too. The app opens it in a Custom
+ * Tab so the user stays inside MemorIA.
+ */
+@JsonClass(generateAdapter = true)
+data class CheckoutSession(
+    val sessionId: String? = null,
+    val url: String? = null,
+    val plan: String = "monthly",
+    val trialDays: Int = 7,
+    val amount: Double = 0.0,
+)
+
+@JsonClass(generateAdapter = true)
+data class SubscriptionStatusRequest(
+    val sessionId: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class SubscriptionStatusData(
+    val plan: String = "monthly",
+    val amount: Double = 0.0,
+    val sessionId: String? = null,
+    val trialDays: Int = 7,
+    val subscriptionStatus: String? = null,
+)

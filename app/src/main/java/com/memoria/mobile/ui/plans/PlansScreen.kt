@@ -1,7 +1,5 @@
 package com.memoria.mobile.ui.plans
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,27 +8,40 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.BackTopBar
@@ -38,23 +49,49 @@ import com.memoria.mobile.ui.common.LoadingBox
 import com.memoria.mobile.ui.common.SectionCard
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.theme.GreenOk
+import com.memoria.mobile.ui.theme.RedMiss
 
 /**
- * "Planos" — the web `plansPage`.
+ * "Planos" — the web `plansPage`, done natively.
  *
- * Card details are never collected here: the button hands the subscription over
- * to the MemorIA site, which runs the gateway's own secure checkout.
+ * Plan choice, payer e-mail, subscription status and cancellation are all native.
+ * Only the card authorisation is Mercado Pago's own page, and it renders inside
+ * this screen: the user never leaves MemorIA, and MemorIA never touches card data.
  */
 @Composable
-fun PlansScreen(onBack: () -> Unit, checkoutUrl: String) {
+fun PlansScreen(onBack: () -> Unit) {
     val vm = repoViewModel { PlansViewModel(it) }
     val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    var confirmCancel by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.load() }
 
-    Scaffold(topBar = { BackTopBar("Planos", onBack) }) { inner ->
-        if (state.loading && state.config == null && state.user == null) {
+    // The checkout takes over this screen instead of leaving the app. Returning
+    // is a native transition back to the plan list, never an app switch.
+    val checkoutUrl = state.checkoutUrl
+    if (checkoutUrl != null) {
+        CheckoutWebView(
+            url = checkoutUrl,
+            returnHost = state.returnHost,
+            onFinished = { vm.consumeCheckoutUrl(); vm.confirmAfterCheckout() },
+            onCancel = { vm.consumeCheckoutUrl(); vm.confirmAfterCheckout() },
+        )
+        return
+    }
+
+    LaunchedEffect(state.message) {
+        state.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() }
+    }
+    LaunchedEffect(state.error) {
+        state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+    }
+
+    Scaffold(
+        topBar = { BackTopBar("Planos", onBack) },
+        snackbarHost = { SnackbarHost(snackbar) },
+    ) { inner ->
+        if (state.loading && state.user == null) {
             LoadingBox(Modifier.padding(inner))
             return@Scaffold
         }
@@ -67,32 +104,35 @@ fun PlansScreen(onBack: () -> Unit, checkoutUrl: String) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (state.isPremium) {
+            if (state.awaitingConfirmation) {
                 Card(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.padding(16.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = GreenOk)
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text("Você já é Premium", style = MaterialTheme.typography.titleLarge)
-                            Text(
-                                state.user?.subscriptionStatus?.let { "Assinatura: $it" }
-                                    ?: "Todos os recursos liberados.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                        Text(
+                            "  Confirmando o pagamento...",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
                     }
                 }
+            }
+
+            if (state.isPremium) {
+                PremiumStatusCard(
+                    status = state.subscriptionStatus,
+                    working = state.working,
+                    onCancel = { confirmCancel = true },
+                )
             }
 
             SectionCard("O que o Premium libera", icon = Icons.Filled.WorkspacePremium) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Ative com cartão de crédito e aproveite 7 dias grátis para testar todos os " +
-                            "recursos premium. Após o período de teste, a cobrança começa automaticamente " +
-                            "no plano escolhido.",
+                        "Ative com cartão de crédito e aproveite ${state.trialDays} dias grátis para " +
+                            "testar todos os recursos premium. Depois do teste, a cobrança começa " +
+                            "automaticamente no plano escolhido.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -105,49 +145,124 @@ fun PlansScreen(onBack: () -> Unit, checkoutUrl: String) {
                 }
             }
 
-            SectionCard("Escolha o plano") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PlanCard(
-                        title = "Plano Mensal",
-                        price = state.monthlyPrice,
-                        note = "Cancele quando quiser.",
-                        selected = state.selected == BillingCycle.MONTHLY,
-                        onSelect = { vm.select(BillingCycle.MONTHLY) },
-                    )
-                    PlanCard(
-                        title = "Plano Anual",
-                        price = state.annualPrice,
-                        note = "7 dias grátis e depois cobrança anual. Melhor custo por mês.",
-                        selected = state.selected == BillingCycle.ANNUAL,
-                        onSelect = { vm.select(BillingCycle.ANNUAL) },
-                    )
-                    Text(
-                        "Você autoriza o cartão no checkout seguro do site e recebe 7 dias grátis. " +
-                            "A cobrança do plano começa após o teste.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Button(
-                        onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(checkoutUrl)))
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                        Text(if (state.isPremium) "  Gerenciar assinatura" else "  Assinar no site MemorIA")
-                    }
-                    state.error?.let {
-                        Text(
-                            "Não foi possível confirmar os preços no servidor ($it). Os valores acima " +
-                                "podem estar desatualizados — confirme no site antes de assinar.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error,
+            if (!state.isPremium) {
+                SectionCard("Escolha o plano") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PlanCard(
+                            title = "Plano Mensal",
+                            price = state.monthlyPrice,
+                            note = "Cancele quando quiser, aqui mesmo no app.",
+                            selected = state.selected == BillingCycle.MONTHLY,
+                            onSelect = { vm.select(BillingCycle.MONTHLY) },
                         )
+                        PlanCard(
+                            title = "Plano Anual",
+                            price = state.annualPrice,
+                            note = "${state.trialDays} dias grátis. Melhor custo por mês.",
+                            selected = state.selected == BillingCycle.ANNUAL,
+                            onSelect = { vm.select(BillingCycle.ANNUAL) },
+                        )
+                    }
+                }
+
+                SectionCard("Dados da cobrança", icon = Icons.Filled.CreditCard) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = state.payerEmail,
+                            onValueChange = vm::onPayerEmail,
+                            label = { Text("E-mail para a cobrança") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Filled.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                "  O cartão é digitado na página segura do Mercado Pago, que abre " +
+                                    "aqui dentro do app. O MemorIA nunca vê os dados do seu cartão.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Button(
+                            onClick = vm::startCheckout,
+                            enabled = state.canCheckout,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            if (state.working) {
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp).padding(end = 4.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                            Text("Assinar Premium")
+                        }
                     }
                 }
             }
         }
     }
+
+    if (confirmCancel) {
+        AlertDialog(
+            onDismissRequest = { confirmCancel = false },
+            title = { Text("Cancelar assinatura?") },
+            text = {
+                Text(
+                    "O Premium fica ativo até o fim do período já pago e depois a conta volta ao " +
+                        "plano gratuito. Você pode assinar de novo quando quiser.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmCancel = false; vm.cancelSubscription() }) {
+                    Text("Cancelar assinatura", color = RedMiss)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCancel = false }) { Text("Manter Premium") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PremiumStatusCard(status: String?, working: Boolean, onCancel: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = GreenOk)
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text("Você é Premium", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        statusLabel(status),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            OutlinedButton(
+                onClick = onCancel,
+                enabled = !working,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Cancelar assinatura", color = RedMiss)
+            }
+        }
+    }
+}
+
+private fun statusLabel(status: String?): String = when (status) {
+    "authorized" -> "Assinatura ativa."
+    "pending" -> "Pagamento em processamento."
+    "cancelled" -> "Assinatura cancelada — o acesso vai até o fim do período pago."
+    "paused" -> "Assinatura pausada."
+    null, "" -> "Todos os recursos liberados."
+    else -> "Situação da assinatura: $status"
 }
 
 @Composable

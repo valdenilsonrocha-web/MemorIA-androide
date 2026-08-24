@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.repoViewModel
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LoginScreen(
     onLoggedIn: () -> Unit,
@@ -76,7 +79,19 @@ fun LoginScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Spacer(Modifier.height(24.dp))
-        Text("MemorIA 💊", style = MaterialTheme.typography.headlineSmall)
+        // Long-pressing the title is the way back to the server field. It has to
+        // live on this screen — Settings is behind the login wall, so an address
+        // saved wrong would otherwise be unrecoverable without clearing app data
+        // — but a patient reading "Servidor: https://..." on the sign-in screen
+        // only learns that something can break.
+        Text(
+            "MemorIA 💊",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.combinedClickable(
+                onClick = {},
+                onLongClick = { showServer = !showServer },
+            ),
+        )
         Text(
             "Lembretes de medicamentos com aviso ao cuidador pelo WhatsApp.",
             style = MaterialTheme.typography.bodyLarge,
@@ -162,17 +177,11 @@ fun LoginScreen(
             Text("Criar conta")
         }
 
-        // The server address is editable HERE, not only in Settings: Settings sits
-        // behind the login wall, so a wrong address used to be unrecoverable
-        // without clearing app data.
-        TextButton(onClick = { showServer = !showServer }) {
-            Text(
-                if (showServer) "Ocultar servidor" else "Servidor: ${state.baseUrl}",
-                textAlign = TextAlign.Center,
-            )
-        }
-
         if (showServer) {
+            Text(
+                "Endereço do servidor",
+                style = MaterialTheme.typography.titleLarge,
+            )
             OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = vm::onBaseUrl,
