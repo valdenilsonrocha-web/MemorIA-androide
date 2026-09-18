@@ -20,3 +20,6 @@ ios/DerivedData/
 ios/**/xcuserdata/
 ios/**/*.xcuserstate
 ios/.swiftpm/
+
+# Kotlin build cache
+.kotlin/
