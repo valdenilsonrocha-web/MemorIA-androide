@@ -80,6 +80,8 @@ data class EmergencyContactRecord(
     val relation: String = "",
     val phone: String = "",
     val email: String = "",
+    /** Web "Tratamento": auto | sra | sr. */
+    val title: String = "auto",
 )
 
 /**
@@ -110,3 +112,19 @@ data class MedicationExtras(
             prescribingDoctor.isBlank() &&
             dispensingPharmacy.isBlank()
 }
+
+/**
+ * How a medication looks on screen — the web form's "Ícone do Medicamento":
+ * pharmaceutical form (`comprimido`, `capsula`, `gotas`…), pill shape and colours.
+ * The backend has no column for any of it (on the web it lives in
+ * `localStorage`), so it stays on the phone, keyed by the server's medication id.
+ */
+@JsonClass(generateAdapter = true)
+data class MedicationLook(
+    val medicationId: String,
+    val medicationForm: String = "comprimido",
+    val pillShape: String = "round",
+    val pillColor: String = "#e5e7eb",
+    val capsuleColor1: String = "#e5e7eb",
+    val capsuleColor2: String = "#2f7dff",
+)

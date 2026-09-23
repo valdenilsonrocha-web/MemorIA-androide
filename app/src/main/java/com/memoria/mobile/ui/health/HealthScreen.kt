@@ -1,25 +1,53 @@
 package com.memoria.mobile.ui.health
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.MedicalServices
-import androidx.compose.material.icons.filled.Mood
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Science
+import androidx.compose.material.icons.filled.SentimentSatisfied
+import androidx.compose.material.icons.filled.SentimentVerySatisfied
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Thermostat
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.filled.Transgender
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -27,32 +55,35 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.local.SafetyRecord
 import com.memoria.mobile.data.local.VitalSignsRecord
 import com.memoria.mobile.data.local.WellbeingRecord
-import com.memoria.mobile.ui.common.DetailRow
-import com.memoria.mobile.ui.common.Schedule
-import com.memoria.mobile.ui.common.SectionCard
+import com.memoria.mobile.ui.common.DateTimeField
+import com.memoria.mobile.ui.common.PageGuide
+import com.memoria.mobile.ui.common.PageTopGuide
+import com.memoria.mobile.ui.common.MemoriaSnackbar
+import com.memoria.mobile.ui.home.InlinePageTitle
 import com.memoria.mobile.ui.common.repoViewModel
-import com.memoria.mobile.ui.theme.Amber
-import com.memoria.mobile.ui.theme.GreenOk
-import com.memoria.mobile.ui.theme.RedMiss
-import java.time.format.DateTimeFormatter
+import com.memoria.mobile.ui.theme.BorderSubtle
 import java.util.Locale
-
-private val DATE_BR = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-private val PT_BR: Locale = Locale.forLanguageTag("pt-BR")
 
 private val GLUCOSE_CONTEXTS = listOf(
     "fasting" to "Em jejum",
@@ -61,7 +92,7 @@ private val GLUCOSE_CONTEXTS = listOf(
 )
 
 private val ACTIVITY_TYPES = listOf(
-    "" to "Selecione",
+    "" to "Selecione...",
     "caminhada" to "Caminhada",
     "corrida" to "Corrida",
     "ciclismo" to "Ciclismo",
@@ -81,17 +112,46 @@ private val SEX_OPTIONS = listOf(
     "not_informed" to "Prefiro não informar",
 )
 
-private val CARE_LEVELS = listOf(
-    Triple(1, "Nível 1", "Independente — alertas básicos"),
-    Triple(2, "Nível 2", "Monitoramento — avisos ao cuidador"),
-    Triple(3, "Nível 3", "Atenção especial — alertas frequentes"),
-    Triple(4, "Nível 4", "Cuidado intensivo — notificações de emergência"),
+/** Cores de `.hm-icon-*` no `main.css`: fundo claro e ícone saturado. */
+private enum class Tone(val bg: Color, val fg: Color) {
+    RED(Color(0xFFFEE2E2), Color(0xFFDC2626)),
+    BLUE(Color(0xFFDBEAFE), Color(0xFF0060F8)),
+    ORANGE(Color(0xFFFFEDD5), Color(0xFFEA580C)),
+    PURPLE(Color(0xFFE0EDFF), Color(0xFF0053D6)),
+    YELLOW(Color(0xFFFEF9C3), Color(0xFFCA8A04)),
+    GREEN(Color(0xFFDCFCE7), Color(0xFF16A34A)),
+}
+
+/** `.hm-care-*`: um cartão por nível, com a cor a subir com a gravidade. */
+private data class CareLevel(
+    val level: Int,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val bg: Color,
+    val fg: Color,
 )
 
-private val SLEEP_FACES = listOf(1 to "😴", 2 to "😪", 3 to "😐", 4 to "😊", 5 to "😁")
-private val MOOD_FACES = listOf(1 to "😡", 2 to "😞", 3 to "😐", 4 to "😊", 5 to "🤩")
+private val CARE_LEVELS = listOf(
+    CareLevel(1, "Nível 1", "Independente — alertas básicos", Icons.Filled.CheckCircle, Color(0xFFDCFCE7), Color(0xFF166534)),
+    CareLevel(2, "Nível 2", "Monitoramento — avisos ao cuidador", Icons.Filled.Error, Color(0xFFFEF9C3), Color(0xFF854D0E)),
+    CareLevel(3, "Nível 3", "Atenção especial — alertas frequentes", Icons.Filled.Warning, Color(0xFFFFEDD5), Color(0xFF9A3412)),
+    CareLevel(4, "Nível 4", "Cuidado intensivo — notificações de emergência", Icons.Filled.Cancel, Color(0xFFFEE2E2), Color(0xFF991B1B)),
+)
 
-/** "Saúde" — the web `healthPage`, its three panels kept as selectable sections. */
+private val SLEEP_FACES = listOf(
+    Triple(1, "😴", "Muito ruim"), Triple(2, "😪", "Ruim"), Triple(3, "😐", "Regular"),
+    Triple(4, "😊", "Boa"), Triple(5, "😁", "Excelente"),
+)
+private val MOOD_FACES = listOf(
+    Triple(1, "😡", "Muito mal"), Triple(2, "😞", "Mal"), Triple(3, "😐", "Normal"),
+    Triple(4, "😊", "Bem"), Triple(5, "🤩", "Ótimo"),
+)
+
+/**
+ * "Saúde" — the web `healthPage`: as três secções (Sinais Vitais, Indicadores
+ * de Bem-Estar, Segurança e Prevenção) empilhadas numa só página, como lá.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthScreen(contentPadding: PaddingValues) {
@@ -108,8 +168,7 @@ fun HealthScreen(contentPadding: PaddingValues) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Saúde") }) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { MemoriaSnackbar(it) } },
     ) { inner ->
         Column(
             Modifier
@@ -118,324 +177,463 @@ fun HealthScreen(contentPadding: PaddingValues) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
                 .padding(bottom = contentPadding.calculateBottomPadding()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                "Monitore seus indicadores de saúde e bem-estar.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // `#pageTopGuide` is prepended to `#healthPage`: the image first,
+            // then `.page-header` (h2 com o ícone + `.subtitle`).
+            PageTopGuide(PageGuide.DOCTORS)
+            InlinePageTitle(
+                "Saúde",
+                subtitle = "Monitore seus indicadores de saúde e bem-estar.",
+                topTrim = 12.dp,
             )
 
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                HealthSection.entries.forEach { section ->
-                    FilterChip(
-                        selected = state.section == section,
-                        onClick = { vm.selectSection(section) },
-                        label = { Text(section.label) },
-                    )
-                }
-            }
-
-            when (state.section) {
-                HealthSection.VITAL_SIGNS -> VitalSignsPanel(state, vm)
-                HealthSection.WELLBEING -> WellbeingPanel(state, vm)
-                HealthSection.SAFETY -> SafetyPanel(state, vm)
-            }
+            VitalSignsPanel(state, vm)
+            HorizontalDivider(thickness = 1.5.dp)
+            WellbeingPanel(state, vm)
+            HorizontalDivider(thickness = 1.5.dp)
+            SafetyPanel(state, vm)
         }
     }
 }
 
-// ---- Vital signs ------------------------------------------------------------
+// ---- Sinais Vitais ------------------------------------------------------------
 
 @Composable
 private fun VitalSignsPanel(state: HealthUiState, vm: HealthViewModel) {
-    SectionCard("Sinais Vitais", icon = Icons.Filled.MonitorHeart) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Pressão Arterial (mmHg)", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberField(state.systolic, vm::onSystolic, "Sistólica", Modifier.weight(1f))
-                NumberField(state.diastolic, vm::onDiastolic, "Diastólica", Modifier.weight(1f))
-            }
-            StatusBadge(bloodPressureStatus(state.systolic.toIntOrNull(), state.diastolic.toIntOrNull()))
+    SectionTitle(Icons.Filled.MonitorHeart, "Sinais Vitais")
 
-            NumberField(state.heartRate, vm::onHeartRate, "Frequência cardíaca (bpm)")
-            StatusBadge(heartRateStatus(state.heartRate.toIntOrNull()))
+    MetricCard(Icons.Filled.CalendarMonth, Tone.BLUE, "Data da atualização") {
+        DateTimeField(
+            value = state.measurementAt,
+            onChange = vm::onMeasurementAt,
+            label = "Data e hora",
+        )
+    }
 
-            NumberField(state.spo2, vm::onSpo2, "Saturação de oxigênio SpO₂ (%)", decimal = true)
-            StatusBadge(spo2Status(state.spo2.toDoubleBr()))
-
-            NumberField(state.glucose, vm::onGlucose, "Glicose (mg/dL)", decimal = true)
-            ChipRow(GLUCOSE_CONTEXTS, state.glucoseContext, vm::onGlucoseContext)
-            StatusBadge(glucoseStatus(state.glucose.toDoubleBr(), state.glucoseContext))
-
-            NumberField(state.hba1c, vm::onHba1c, "Hemoglobina glicada HbA1c (%)", decimal = true)
-            StatusBadge(hba1cStatus(state.hba1c.toDoubleBr()))
-
-            NumberField(state.temperature, vm::onTemperature, "Temperatura corporal (°C)", decimal = true)
-            StatusBadge(temperatureStatus(state.temperature.toDoubleBr()))
-
-            SaveButton("Salvar Sinais Vitais", vm::saveVitalSigns)
+    MetricCard(Icons.Filled.MonitorHeart, Tone.RED, "Pressão Arterial") {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            NumberInput(state.systolic, vm::onSystolic, "Sistólica", Modifier.weight(1f))
+            Text("/", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            NumberInput(state.diastolic, vm::onDiastolic, "Diastólica", Modifier.weight(1f))
+            UnitLabel("mmHg")
         }
+        StatusBadge(bloodPressureStatus(state.systolic.toDoubleOrNullBr(), state.diastolic.toDoubleOrNullBr()))
     }
 
-    HistoryCard("Últimas Medições", state.vitalSigns.isEmpty()) {
-        state.vitalSigns.take(10).forEach { record -> VitalSignsHistoryRow(record) }
+    MetricCard(Icons.Filled.Favorite, Tone.RED, "Frequência Cardíaca") {
+        SingleInput(state.heartRate, vm::onHeartRate, "Ex: 72", "bpm")
+        StatusBadge(heartRateStatus(state.heartRate.toDoubleOrNullBr()))
     }
+
+    MetricCard(Icons.Filled.Air, Tone.BLUE, "Saturação de Oxigênio (SpO₂)") {
+        SingleInput(state.spo2, vm::onSpo2, "Ex: 98", "%", decimal = true)
+        StatusBadge(spo2Status(state.spo2.toDoubleOrNullBr()))
+    }
+
+    MetricCard(Icons.Filled.WaterDrop, Tone.ORANGE, "Glicose") {
+        SingleInput(state.glucose, vm::onGlucose, "Ex: 95", "mg/dL", decimal = true)
+        SelectField(
+            GLUCOSE_CONTEXTS,
+            state.glucoseContext,
+            vm::onGlucoseContext,
+            accessibilityLabel = "Contexto da medição de glicose",
+        )
+        StatusBadge(glucoseStatus(state.glucose.toDoubleOrNullBr()))
+    }
+
+    MetricCard(Icons.Filled.Science, Tone.PURPLE, "Hemoglobina Glicada (HbA1c)") {
+        SingleInput(state.hba1c, vm::onHba1c, "Ex: 5.7", "%", decimal = true)
+        StatusBadge(hba1cStatus(state.hba1c.toDoubleOrNullBr()))
+    }
+
+    MetricCard(Icons.Filled.Thermostat, Tone.YELLOW, "Temperatura Corporal") {
+        SingleInput(state.temperature, vm::onTemperature, "Ex: 36.5", "°C", decimal = true)
+        StatusBadge(temperatureStatus(state.temperature.toDoubleOrNullBr()))
+    }
+
+    SaveButton("Salvar Sinais Vitais", vm::saveVitalSigns)
+
+    HistorySection(state.vitalSigns.take(10)) { VitalSignsHistoryItem(it) }
 }
 
 @Composable
-private fun VitalSignsHistoryRow(record: VitalSignsRecord) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(
-            Schedule.localDateOf(record.date)?.format(DATE_BR) ?: record.date,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        if (record.systolic != null && record.diastolic != null) {
-            DetailRow("Pressão", "${record.systolic}/${record.diastolic} mmHg")
+private fun VitalSignsHistoryItem(r: VitalSignsRecord) {
+    val parts = buildList {
+        if (r.systolic != null && r.systolic != 0 && r.diastolic != null && r.diastolic != 0) {
+            add("PA: ${r.systolic}/${r.diastolic} mmHg")
         }
-        record.heartRate?.let { DetailRow("Freq. cardíaca", "$it bpm") }
-        record.spo2?.let { DetailRow("SpO₂", "${decimal(it)}%") }
-        record.glucose?.let {
-            val context = GLUCOSE_CONTEXTS.firstOrNull { c -> c.first == record.glucoseContext }?.second
-            DetailRow("Glicose", "${decimal(it)} mg/dL${context?.let { c -> " ($c)" }.orEmpty()}")
-        }
-        record.hba1c?.let { DetailRow("HbA1c", "${decimal(it)}%") }
-        record.temperature?.let { DetailRow("Temperatura", "${decimal(it)} °C") }
+        r.heartRate?.takeIf { it != 0 }?.let { add("FC: $it bpm") }
+        r.spo2?.takeIf { it != 0.0 }?.let { add("SpO₂: ${jsNumber(it)}%") }
+        r.glucose?.takeIf { it != 0.0 }?.let { add("Glicose: ${jsNumber(it)} mg/dL") }
+        r.hba1c?.takeIf { it != 0.0 }?.let { add("HbA1c: ${jsNumber(it)}%") }
+        r.temperature?.takeIf { it != 0.0 }?.let { add("Temp: ${jsNumber(it)}°C") }
     }
+    HistoryItem(r.date, parts)
 }
 
-// ---- Wellbeing --------------------------------------------------------------
+// ---- Indicadores de Bem-Estar ---------------------------------------------------
 
 @Composable
 private fun WellbeingPanel(state: HealthUiState, vm: HealthViewModel) {
-    SectionCard("Bem-estar", icon = Icons.Filled.Mood) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Qualidade do sono", style = MaterialTheme.typography.labelLarge)
-            FaceRow(SLEEP_FACES, state.sleepQuality, vm::onSleepQuality)
-            NumberField(state.sleepHours, vm::onSleepHours, "Horas dormidas (h)", decimal = true)
+    SectionTitle(Icons.Filled.SentimentSatisfied, "Indicadores de Bem-Estar")
 
-            NumberField(state.hydration, vm::onHydration, "Hidratação (L/dia)", decimal = true)
-            StatusBadge(hydrationStatus(state.hydration.toDoubleBr()))
-
-            Text("Humor e disposição", style = MaterialTheme.typography.labelLarge)
-            FaceRow(MOOD_FACES, state.mood, vm::onMood)
-            OutlinedTextField(
-                value = state.moodNote,
-                onValueChange = vm::onMoodNote,
-                label = { Text("Observação (opcional)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Text("Atividade física", style = MaterialTheme.typography.labelLarge)
-            ChipRow(ACTIVITY_TYPES, state.activityType, vm::onActivityType)
-            NumberField(state.activityDuration, vm::onActivityDuration, "Duração (min)")
-
-            SaveButton("Salvar Bem-estar", vm::saveWellbeing)
-        }
+    MetricCard(Icons.Filled.Bedtime, Tone.BLUE, "Qualidade do Sono") {
+        RatingRow(SLEEP_FACES, state.sleepQuality, vm::onSleepQuality)
+        SingleInput(state.sleepHours, vm::onSleepHours, "Horas dormidas", "h", decimal = true)
     }
 
-    HistoryCard("Últimos Registros", state.wellbeing.isEmpty()) {
-        state.wellbeing.take(10).forEach { record -> WellbeingHistoryRow(record) }
+    MetricCard(Icons.Filled.LocalDrink, Tone.BLUE, "Hidratação") {
+        SingleInput(state.hydration, vm::onHydration, "Ex: 2.0", "L/dia", decimal = true)
     }
+
+    MetricCard(Icons.Filled.SentimentVerySatisfied, Tone.YELLOW, "Humor e Disposição") {
+        RatingRow(MOOD_FACES, state.mood, vm::onMood)
+        OutlinedTextField(
+            value = state.moodNote,
+            onValueChange = vm::onMoodNote,
+            placeholder = { Text("Observação (opcional)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    MetricCard(Icons.AutoMirrored.Filled.DirectionsRun, Tone.GREEN, "Atividade Física") {
+        SelectField(
+            ACTIVITY_TYPES,
+            state.activityType,
+            vm::onActivityType,
+            accessibilityLabel = "Tipo de atividade",
+        )
+        SingleInput(state.activityDuration, vm::onActivityDuration, "Duração", "min")
+    }
+
+    SaveButton("Salvar Bem-Estar", vm::saveWellbeing)
+
+    HistorySection(state.wellbeing.take(10)) { WellbeingHistoryItem(it) }
 }
 
 @Composable
-private fun WellbeingHistoryRow(record: WellbeingRecord) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(
-            Schedule.localDateOf(record.date)?.format(DATE_BR) ?: record.date,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        record.sleepQuality?.let {
-            DetailRow("Sono", "${SLEEP_FACES.firstOrNull { f -> f.first == it }?.second.orEmpty()} ($it/5)")
+private fun WellbeingHistoryItem(r: WellbeingRecord) {
+    val parts = buildList {
+        r.sleepQuality?.takeIf { it != 0 }?.let { q ->
+            add("Sono: ${SLEEP_FACES.firstOrNull { it.first == q }?.second ?: q}")
         }
-        record.sleepHours?.let { DetailRow("Horas dormidas", "${decimal(it)} h") }
-        record.hydration?.let { DetailRow("Hidratação", "${decimal(it)} L") }
-        record.mood?.let {
-            DetailRow("Humor", "${MOOD_FACES.firstOrNull { f -> f.first == it }?.second.orEmpty()} ($it/5)")
+        r.sleepHours?.takeIf { it != 0.0 }?.let { add("${jsNumber(it)}h") }
+        r.hydration?.takeIf { it != 0.0 }?.let { add("Água: ${jsNumber(it)}L") }
+        r.mood?.takeIf { it != 0 }?.let { m ->
+            add("Humor: ${MOOD_FACES.firstOrNull { it.first == m }?.second ?: m}")
         }
-        if (record.moodNote.isNotBlank()) DetailRow("Observação", record.moodNote)
-        if (record.activityType.isNotBlank()) {
-            val label = ACTIVITY_TYPES.firstOrNull { it.first == record.activityType }?.second
-                ?: record.activityType
-            DetailRow("Atividade", label + (record.activityDuration?.let { " · $it min" } ?: ""))
+        if (r.activityType.isNotBlank()) {
+            val duration = r.activityDuration?.takeIf { it != 0 }?.let { " ${it}min" }.orEmpty()
+            add("Atividade: ${r.activityType}$duration")
         }
     }
+    HistoryItem(r.date, parts)
 }
 
-// ---- Safety -----------------------------------------------------------------
+// ---- Segurança e Prevenção --------------------------------------------------------
 
 @Composable
 private fun SafetyPanel(state: HealthUiState, vm: HealthViewModel) {
-    SectionCard("Segurança", icon = Icons.Filled.HealthAndSafety) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(state.weight, vm::onWeight, "Peso (kg)", decimal = true)
-            NumberField(state.height, vm::onHeight, "Altura (cm)", decimal = true)
+    SectionTitle(Icons.Filled.Shield, "Segurança e Prevenção")
 
-            Text("Sexo", style = MaterialTheme.typography.labelLarge)
-            ChipRow(SEX_OPTIONS, state.sex, vm::onSex)
+    MetricCard(Icons.Filled.MonitorWeight, Tone.GREEN, "Peso") {
+        SingleInput(state.weight, vm::onWeight, "Ex: 72.5", "kg", decimal = true)
+    }
 
-            DetailRow("IMC", state.bmi?.let { decimal(it) } ?: "Informe peso e altura")
-            StatusBadge(bmiStatus(state.bmi))
+    MetricCard(Icons.Filled.Straighten, Tone.BLUE, "Altura") {
+        SingleInput(state.height, vm::onHeight, "Ex: 170", "cm", decimal = true)
+    }
 
-            Text("Escala de cuidados", style = MaterialTheme.typography.labelLarge)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CARE_LEVELS.forEach { (level, title, description) ->
-                    FilterChip(
-                        selected = state.careLevel == level,
-                        onClick = { vm.onCareLevel(level) },
-                        label = {
-                            Column {
-                                Text(title, fontWeight = FontWeight.SemiBold)
-                                Text(description, style = MaterialTheme.typography.bodyLarge)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
+    MetricCard(Icons.Filled.Transgender, Tone.PURPLE, "Sexo") {
+        SelectField(SEX_OPTIONS, state.sex, vm::onSex, accessibilityLabel = "Sexo para cálculo do IMC")
+    }
+
+    MetricCard(Icons.Filled.Calculate, Tone.PURPLE, "IMC (Índice de Massa Corporal)") {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedTextField(
+                value = state.bmi?.let { String.format(Locale.US, "%.1f", it) }.orEmpty(),
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                placeholder = { Text("Calculado automaticamente") },
+                modifier = Modifier.weight(1f),
+            )
+            UnitLabel("kg/m²")
+        }
+        StatusBadge(bmiStatus(state.bmi, state.resolvedSex))
+        Hint("O IMC é calculado automaticamente com base no peso, altura e sexo informado.")
+    }
+
+    MetricCard(Icons.Filled.Notifications, Tone.RED, "Escala de Cuidados") {
+        Hint("Defina o nível de atenção necessário. Afeta as notificações e alertas para cuidadores.")
+        CARE_LEVELS.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { level ->
+                    CareLevelCard(
+                        level = level,
+                        selected = state.careLevel == level.level,
+                        onClick = { vm.onCareLevel(level.level) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
-
-            SaveButton("Salvar Segurança", vm::saveSafety)
         }
     }
 
-    SectionCard("Meus Médicos", icon = Icons.Filled.MedicalServices) {
-        if (state.doctors.isEmpty()) {
-            Text(
-                "Nenhum médico cadastrado. Adicione em Mais > Meus Médicos.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Column {
-                state.doctors.forEach { doctor -> DetailRow(doctor.name, doctor.info) }
+    SaveButton("Salvar Segurança", vm::saveSafety)
+
+    HistorySection(state.safety.take(10)) { SafetyHistoryItem(it) }
+}
+
+@Composable
+private fun CareLevelCard(level: CareLevel, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(level.bg)
+            .border(2.5.dp, if (selected) level.fg else Color.Transparent, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "${level.title}: ${level.description}" }
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(level.icon, contentDescription = null, tint = level.fg, modifier = Modifier.size(22.dp))
+        Text(level.title, color = level.fg, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text(
+            level.description,
+            color = level.fg.copy(alpha = 0.75f),
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun SafetyHistoryItem(r: SafetyRecord) {
+    val parts = buildList {
+        r.weight?.takeIf { it != 0.0 }?.let { add("Peso: ${jsNumber(it)} kg") }
+        r.height?.takeIf { it != 0.0 }?.let { add("Altura: ${jsNumber(it)} cm") }
+        if (r.sex.isNotBlank() && r.sex != "not_informed" && r.sex != "auto") {
+            val label = when (r.sex) {
+                "female" -> "Feminino"
+                "male" -> "Masculino"
+                else -> "Outro"
+            }
+            add("Sexo: $label")
+        }
+        r.bmi?.takeIf { it != 0.0 }?.let { add("IMC: ${jsNumber(it)}") }
+        r.careLevel?.takeIf { it != 0 }?.let { add("Cuidados: Nível $it") }
+    }
+    HistoryItem(r.date, parts)
+}
+
+// ---- Peças partilhadas ---------------------------------------------------------------
+
+@Composable
+private fun SectionTitle(icon: ImageVector, title: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(
+            "  $title",
+            fontSize = 17.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** `.health-metric-card`: ícone colorido à esquerda, rótulo e campos à direita. */
+@Composable
+private fun MetricCard(
+    icon: ImageVector,
+    tone: Tone,
+    label: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        // `--border-light` (#f3f4f6): a página Saúde não usa a borda do tema.
+        border = BorderStroke(1.5.dp, BorderSubtle),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(tone.bg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = tone.fg, modifier = Modifier.size(20.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                content()
             }
         }
     }
-
-    HistoryCard("Últimas Medições", state.safety.isEmpty()) {
-        state.safety.take(10).forEach { record -> SafetyHistoryRow(record) }
-    }
 }
 
 @Composable
-private fun SafetyHistoryRow(record: SafetyRecord) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Text(
-            Schedule.localDateOf(record.date)?.format(DATE_BR) ?: record.date,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        record.weight?.let { DetailRow("Peso", "${decimal(it)} kg") }
-        record.height?.let { DetailRow("Altura", "${decimal(it)} cm") }
-        record.bmi?.let { DetailRow("IMC", decimal(it)) }
-        record.careLevel?.let { level ->
-            DetailRow("Escala de cuidados", CARE_LEVELS.firstOrNull { it.first == level }?.second ?: "$level")
-        }
-    }
-}
-
-// ---- Shared pieces ----------------------------------------------------------
-
-@Composable
-private fun NumberField(
+private fun NumberInput(
     value: String,
     onChange: (String) -> Unit,
-    label: String,
+    placeholder: String,
     modifier: Modifier = Modifier,
     decimal: Boolean = false,
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
-        label = { Text(label) },
+        placeholder = { Text(placeholder) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number,
         ),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Um campo numérico com a unidade à direita — `.hm-input-row` da web. */
 @Composable
-private fun ChipRow(
-    options: List<Pair<String, String>>,
-    selected: String,
-    onSelect: (String) -> Unit,
+private fun SingleInput(
+    value: String,
+    onChange: (String) -> Unit,
+    placeholder: String,
+    unit: String,
+    decimal: Boolean = false,
 ) {
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        options.forEach { (value, label) ->
-            FilterChip(
-                selected = selected == value,
-                onClick = { onSelect(value) },
-                label = { Text(label) },
-            )
-        }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        NumberInput(value, onChange, placeholder, Modifier.weight(1f), decimal)
+        UnitLabel(unit)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FaceRow(faces: List<Pair<Int, String>>, selected: Int?, onSelect: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        faces.forEach { (value, face) ->
-            FilterChip(
-                selected = selected == value,
-                onClick = { onSelect(value) },
-                label = { Text(face, style = MaterialTheme.typography.titleLarge) },
-            )
+private fun UnitLabel(text: String) {
+    Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, fontSize = 11.5.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** Os botões de emoji de sono e humor — `.hm-rating-btn`. */
+@Composable
+private fun RatingRow(faces: List<Triple<Int, String, String>>, selected: Int?, onSelect: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        faces.forEach { (value, face, description) ->
+            val isSelected = selected == value
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        // `.is-selected { background: rgba(16,185,129,.12) }`; o
+                        // normal é `--bg-secondary`.
+                        if (isSelected) Color(0x1F10B981)
+                        else MaterialTheme.colorScheme.background,
+                    )
+                    .border(
+                        2.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        RoundedCornerShape(10.dp),
+                    )
+                    .clickable { onSelect(value) }
+                    .semantics { contentDescription = description },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(face, fontSize = 22.sp)
+            }
         }
     }
 }
 
+/** `.hm-status`: pílula verde, amarela ou vermelha. */
 @Composable
 private fun StatusBadge(status: HealthStatus?) {
     if (status == null) return
+    val (bg, fg) = when (status.level) {
+        HealthStatus.Level.NORMAL -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+        HealthStatus.Level.ATTENTION -> Color(0xFFFEF9C3) to Color(0xFF92400E)
+        HealthStatus.Level.ALERT -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+    }
     Text(
         status.text,
-        style = MaterialTheme.typography.bodyLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = when (status.level) {
-            HealthStatus.Level.NORMAL -> GreenOk
-            HealthStatus.Level.ATTENTION -> Amber
-            HealthStatus.Level.ALERT -> RedMiss
-        },
+        fontSize = 11.5.sp,
+        fontWeight = FontWeight.Bold,
+        color = fg,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
     )
 }
 
 @Composable
 private fun SaveButton(label: String, onClick: () -> Unit) {
-    Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Icon(Icons.Filled.Save, contentDescription = null)
-        Text("  $label")
-    }
-}
-
-@Composable
-private fun HistoryCard(title: String, empty: Boolean, content: @Composable () -> Unit) {
-    SectionCard(title, icon = Icons.Filled.History) {
-        if (empty) {
-            Text(
-                "Nenhum registro ainda.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Column { content() }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Button(onClick = onClick, contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp)) {
+            Icon(Icons.Filled.Save, contentDescription = null)
+            Text("  $label")
         }
     }
 }
 
-private fun String.toDoubleBr(): Double? = trim().replace(',', '.').toDoubleOrNull()
+/** "Últimas Medições" — o mesmo título e o mesmo vazio nas três secções. */
+@Composable
+private fun <T> HistorySection(records: List<T>, item: @Composable (T) -> kotlin.Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.AutoMirrored.Filled.ShowChart,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text("  Últimas Medições", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+        if (records.isEmpty()) {
+            Text(
+                "Nenhuma medição registrada ainda.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+            )
+        } else {
+            records.forEach { item(it) }
+        }
+    }
+}
 
-private fun decimal(value: Double): String = String.format(PT_BR, "%.1f", value)
+/** `.health-history-item`: data pequena por cima, valores unidos por " • ". */
+@Composable
+private fun HistoryItem(date: String, parts: List<String>) {
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, BorderSubtle),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Text(
+                formatShortDateTime(date),
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                parts.joinToString(" • ").ifEmpty { "—" },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}

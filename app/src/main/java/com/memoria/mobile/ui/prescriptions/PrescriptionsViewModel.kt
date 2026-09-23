@@ -8,6 +8,8 @@ import com.memoria.mobile.data.remote.Prescription
 import com.memoria.mobile.data.remote.PrescriptionRequest
 import com.memoria.mobile.data.remote.User
 import com.memoria.mobile.ui.common.PlanLimits
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,23 +52,41 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         }
     }
 
+    /**
+     * Decodes/re-encodes the picture off the main thread (a full-resolution
+     * camera photo takes a noticeable moment), then uploads it.
+     */
+    fun uploadEncoded(fileName: String? = null, encode: () -> String?) {
+        if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
+            _state.value = _state.value.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.")
+            return
+        }
+        _state.value = _state.value.copy(uploading = true)
+        viewModelScope.launch {
+            val data = withContext(Dispatchers.Default) { runCatching(encode).getOrNull() }
+            _state.value = _state.value.copy(uploading = false)
+            upload(data, fileName)
+        }
+    }
+
     /** [imageData] is the `data:image/jpeg;base64,...` URL produced by the encoder. */
-    fun upload(imageData: String?) {
+    fun upload(imageData: String?, fileName: String? = null) {
         // Paid feature, same as on the website, and the backend does not gate it
         // — without this check the phone gave away what the site charges for.
         if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
-            _state.value = _state.value.copy(error = PlanLimits.prescriptionLimitMessage())
+            _state.value = _state.value.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.")
             return
         }
         if (imageData == null) {
             _state.value = _state.value.copy(
-                error = "Não foi possível preparar a imagem. Tente outra foto.",
+                error = "❌ Não foi possível processar a imagem da receita.",
             )
             return
         }
         _state.value = _state.value.copy(uploading = true)
         val request = PrescriptionRequest(
-            fileName = "receita-${System.currentTimeMillis()}.jpg",
+            // `file.name || 'receita.jpg'` na web: o nome do ficheiro escolhido.
+            fileName = fileName?.takeIf { it.isNotBlank() } ?: "receita-${System.currentTimeMillis()}.jpg",
             imageData = imageData,
             capturedAt = OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
         )
@@ -76,7 +96,7 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
                     _state.value = _state.value.copy(
                         uploading = false,
                         prescriptions = listOf(r.value) + _state.value.prescriptions,
-                        message = "Receita salva.",
+                        message = "✅ Receita salva no histórico premium.",
                     )
                 }
                 is ApiResult.Err ->
@@ -91,7 +111,7 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
             when (val r = repo.deletePrescription(id)) {
                 is ApiResult.Ok -> _state.value = _state.value.copy(
                     prescriptions = _state.value.prescriptions.filterNot { it.id == id },
-                    message = "Receita removida.",
+                    message = "🗑️ Receita removida do histórico.",
                 )
                 is ApiResult.Err -> _state.value = _state.value.copy(error = r.message)
             }

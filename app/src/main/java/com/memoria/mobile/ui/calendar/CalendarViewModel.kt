@@ -4,24 +4,33 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
+import com.memoria.mobile.data.local.MedicalConsultation
+import com.memoria.mobile.data.local.MedicationLook
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.Medication
-import com.memoria.mobile.ui.common.DoseSlot
-import com.memoria.mobile.ui.common.Schedule
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.YearMonth
+import java.time.ZoneId
+
+/** Indicator dot under a calendar day: `.calendar-day-indicator.<colour>`. */
+enum class DayIndicator { GREEN, RED }
 
 data class CalendarUiState(
     val loading: Boolean = true,
     val error: String? = null,
     val month: YearMonth = YearMonth.now(),
-    val selectedDay: LocalDate = LocalDate.now(),
+    /** Null until a day is tapped — the web's `#dayDetails` starts empty. */
+    val selectedDay: LocalDate? = null,
     val medications: List<Medication> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
+    val consultations: List<MedicalConsultation> = emptyList(),
+    val looks: Map<String, MedicationLook> = emptyMap(),
 )
 
 class CalendarViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -32,17 +41,25 @@ class CalendarViewModel(private val repo: MemoriaRepository) : ViewModel() {
     fun load() {
         _state.value = _state.value.copy(loading = true, error = null)
         viewModelScope.launch {
-            when (val r = repo.medications()) {
+            val consultations = runCatching { repo.local.consultations() }.getOrDefault(emptyList())
+            val looks = repo.local.medicationLooks().associateBy { it.medicationId }
+            when (val r = repo.history(limit = 400)) {
                 is ApiResult.Ok -> {
-                    // 400 entries covers a dense month of doses without paging.
-                    val history = (repo.history(limit = 400) as? ApiResult.Ok)?.value.orEmpty()
+                    val meds = (repo.medications() as? ApiResult.Ok)?.value.orEmpty()
                     _state.value = _state.value.copy(
                         loading = false,
-                        medications = r.value.filter { it.active },
-                        history = history,
+                        medications = meds,
+                        history = r.value + com.memoria.mobile.reminders.DoseActions.pendingHistory(repo),
+                        consultations = consultations,
+                        looks = looks,
                     )
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.value = _state.value.copy(
+                    loading = false,
+                    error = r.message,
+                    consultations = consultations,
+                    looks = looks,
+                )
             }
         }
     }
@@ -59,14 +76,45 @@ class CalendarViewModel(private val repo: MemoriaRepository) : ViewModel() {
         _state.value = _state.value.copy(selectedDay = day)
     }
 
-    /** Doses due on [day], each carrying whatever status was already recorded. */
-    fun slotsFor(day: LocalDate): List<DoseSlot> = Schedule.withHistory(
-        Schedule.slotsFor(_state.value.medications, day),
-        _state.value.history,
-        day,
-    )
+    /** History entries recorded on [day] (the web's `entry.timestamp`). */
+    fun historyOn(day: LocalDate): List<HistoryEntry> =
+        _state.value.history.filter { recordedOn(it) == day }
 
-    /** How many doses a day holds — drives the dot under each calendar cell. */
-    fun doseCount(day: LocalDate): Int =
-        Schedule.slotsFor(_state.value.medications, day).size
+    /** Consultations on [day], earliest first. */
+    fun consultationsOn(day: LocalDate): List<MedicalConsultation> =
+        _state.value.consultations
+            .mapNotNull { c -> parseLocal(c.dateTime)?.let { it to c } }
+            .filter { it.first.toLocalDate() == day }
+            .sortedBy { it.first }
+            .map { it.second }
+
+    /** Green when only taken doses, red when any dose was not taken — as `loadCalendar()`. */
+    fun indicator(day: LocalDate): DayIndicator? {
+        val entries = historyOn(day)
+        val taken = entries.count { it.status == "taken" }
+        val missed = entries.size - taken
+        return when {
+            taken > 0 && missed == 0 -> DayIndicator.GREEN
+            missed > 0 -> DayIndicator.RED
+            else -> null
+        }
+    }
+
+    fun hasConsultation(day: LocalDate): Boolean = consultationsOn(day).isNotEmpty()
+
+    fun lookFor(entry: HistoryEntry): MedicationLook? {
+        val id = entry.medicationId
+            ?: _state.value.medications.firstOrNull { it.name == entry.medicationName }?.id
+        return id?.let { _state.value.looks[it] }
+    }
+
+    private fun recordedOn(e: HistoryEntry): LocalDate? =
+        listOfNotNull(e.takenAt, e.createdAt, e.scheduledFor).firstNotNullOfOrNull { iso ->
+            runCatching {
+                OffsetDateTime.parse(iso).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate()
+            }.getOrNull()
+        }
+
+    private fun parseLocal(raw: String): LocalDateTime? =
+        runCatching { LocalDateTime.parse(raw.trim()) }.getOrNull()
 }

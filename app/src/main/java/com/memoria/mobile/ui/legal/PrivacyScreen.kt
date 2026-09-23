@@ -88,7 +88,7 @@ fun PrivacyScreen(
 
     Scaffold(
         topBar = { BackTopBar("Privacidade e dados", onBack) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { com.memoria.mobile.ui.common.MemoriaSnackbar(it) } },
     ) { inner ->
         if (state.loading && state.user == null) {
             LoadingBox(Modifier.padding(inner))

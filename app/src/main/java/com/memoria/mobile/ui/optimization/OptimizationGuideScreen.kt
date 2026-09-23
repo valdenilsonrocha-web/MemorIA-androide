@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneIphone
-import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Rocket
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,28 +36,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.SectionCard
+import com.memoria.mobile.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
 
 private val PURPOSE = listOf(
     "Evitar que o celular pause os lembretes do MemorIA em segundo plano.",
-    "Permitir notificações em pop-up para chamar atenção na hora certa.",
+    "Permitir notificações em pop-up/bolha para chamar atenção na hora certa.",
     "Exibir alertas mesmo com a tela bloqueada.",
 )
 
 private val ANDROID_STEPS = listOf(
-    "Abra as Configurações do celular e procure por Apps ou Aplicativos.",
+    "Abra Configurações do celular e procure por Apps ou Aplicativos.",
     "Entre em MemorIA e toque em Bateria.",
     "Selecione Sem restrição ou Não otimizar (o nome muda conforme a marca).",
-    "Em Notificações do app, ative: Mostrar notificações, Pop-up e Sons.",
+    "Em Notificações do app, ative: Mostrar notificações, Pop-up/Heads-up e Sons.",
     "Em Tela de bloqueio, ative: Mostrar conteúdo completo das notificações.",
-    "Se existir permissão de Iniciar em segundo plano / Autostart, mantenha ativada.",
+    "Se existir permissão de Iniciar em segundo plano/Autostart, mantenha ativada.",
 )
 
 private val IOS_STEPS = listOf(
     "Abra Ajustes e toque em Notificações.",
     "Entre em MemorIA e ative Permitir Notificações.",
     "Ative: Tela Bloqueada, Central de Notificações e Tiras (banners).",
-    "Ative Sons e em Mostrar Prévias selecione Sempre.",
+    "Ative Sons e em Mostrar Previews selecione Sempre.",
     "Em Ajustes > Geral > Atualização em 2º Plano, mantenha ativo para o app.",
     "Desative modos de foco que possam silenciar os alertas nos horários críticos.",
 )
@@ -91,7 +92,7 @@ fun OptimizationGuideScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = { BackTopBar("Otimização do App", onBack) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { com.memoria.mobile.ui.common.MemoriaSnackbar(it) } },
     ) { inner ->
         Column(
             Modifier
@@ -102,12 +103,29 @@ fun OptimizationGuideScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                "Melhore alertas, economia de bateria e notificações na tela bloqueada.",
+                "Melhore alertas, economia de bateria e notificações na tela bloqueada",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            SectionCard("Atalhos do sistema", icon = Icons.Filled.Notifications) {
+            SectionCard(titleColor = TextPrimary, title = "O que esta página resolve", icon = Icons.Filled.Rocket) {
+                BulletList(PURPOSE)
+            }
+
+            SectionCard(titleColor = TextPrimary, title = "Android - Passo a passo", icon = Icons.Filled.Android) {
+                NumberedList(ANDROID_STEPS)
+            }
+
+            SectionCard(titleColor = TextPrimary, title = "iPhone (iOS) - Passo a passo", icon = Icons.Filled.PhoneIphone) {
+                NumberedList(IOS_STEPS)
+            }
+
+            SectionCard(titleColor = TextPrimary, title = "Dica rápida para testar", icon = Icons.Filled.Lightbulb) {
+                BulletList(TEST_TIPS)
+            }
+
+            // Extra do app nativo: a web só pode descrever estas telas do sistema.
+            SectionCard(titleColor = TextPrimary, title = "Atalhos do sistema", icon = Icons.Filled.Notifications) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -136,22 +154,6 @@ fun OptimizationGuideScreen(onBack: () -> Unit) {
                         Text("  Abrir detalhes do app (bateria)")
                     }
                 }
-            }
-
-            SectionCard("O que esta página resolve", icon = Icons.Filled.RocketLaunch) {
-                BulletList(PURPOSE)
-            }
-
-            SectionCard("Android — passo a passo", icon = Icons.Filled.Android) {
-                NumberedList(ANDROID_STEPS)
-            }
-
-            SectionCard("iPhone (iOS) — passo a passo", icon = Icons.Filled.PhoneIphone) {
-                NumberedList(IOS_STEPS)
-            }
-
-            SectionCard("Dica rápida para testar", icon = Icons.Filled.Lightbulb) {
-                BulletList(TEST_TIPS)
             }
         }
     }

@@ -50,8 +50,8 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { BackTopBar("Recuperar senha", onBack) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        topBar = { BackTopBar("Recuperar Senha", onBack) },
+        snackbarHost = { SnackbarHost(snackbar) { com.memoria.mobile.ui.common.MemoriaSnackbar(it) } },
     ) { inner ->
         Column(
             Modifier
@@ -64,15 +64,15 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
             when (state.step) {
                 RecoveryStep.REQUEST -> {
                     Text(
-                        "Informe o CPF e o e-mail cadastrados. Enviaremos um código para você criar " +
-                            "uma senha nova.",
+                        "Informe seu CPF e e-mail cadastrado. Enviaremos um link para redefinir sua senha.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     OutlinedTextField(
                         value = state.cpf,
                         onValueChange = vm::onCpf,
-                        label = { Text("CPF (somente números)") },
+                        label = { Text("CPF *") },
+                        placeholder = { Text("000.000.000-00") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
@@ -80,12 +80,13 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
                     OutlinedTextField(
                         value = state.email,
                         onValueChange = vm::onEmail,
-                        label = { Text("E-mail da conta") },
+                        label = { Text("E-mail cadastrado *") },
+                        placeholder = { Text("seu@email.com") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    ActionButton("Enviar código", state.working, vm::requestCode)
+                    ActionButton("Enviar link", state.working, vm::requestCode)
                     TextButton(
                         onClick = vm::goToReset,
                         modifier = Modifier.fillMaxWidth(),
@@ -96,7 +97,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
 
                 RecoveryStep.RESET -> {
                     Text(
-                        "Cole abaixo o código que chegou no seu e-mail e escolha a senha nova.",
+                        "Cole o código de recuperação (o final do link que chegou por e-mail) e digite a sua nova senha abaixo.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -110,7 +111,8 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
                     OutlinedTextField(
                         value = state.newPassword,
                         onValueChange = vm::onNewPassword,
-                        label = { Text("Nova senha (mín. ${ForgotPasswordViewModel.MIN_PASSWORD} caracteres)") },
+                        label = { Text("Nova senha *") },
+                        placeholder = { Text("Mínimo ${ForgotPasswordViewModel.MIN_PASSWORD} caracteres") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -119,7 +121,8 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
                     OutlinedTextField(
                         value = state.confirmPassword,
                         onValueChange = vm::onConfirmPassword,
-                        label = { Text("Repita a nova senha") },
+                        label = { Text("Confirmar nova senha *") },
+                        placeholder = { Text("Repita a senha") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

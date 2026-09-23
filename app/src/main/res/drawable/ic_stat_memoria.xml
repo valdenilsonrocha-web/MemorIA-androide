@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Status-bar icon. Android tints these to a flat silhouette, so it is drawn as
-  solid white on transparent with no colour of its own — a multi-colour icon
-  would come out as an unreadable white blob.
+  Status-bar icon: the capsule with a heart from the MemórIA logo (favicon.png /
+  assets/memoria-pill-icon.svg), which is also what the web uses as its
+  notification icon. Android tints these to a flat silhouette, so it is solid
+  white on transparent: the two halves of the capsule are separated by a thin
+  gap and the heart is cut out of the lower half, which keeps the drawing
+  readable once it is flattened.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -10,10 +13,18 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="#FFFFFF">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.41,0 -8,-3.59 -8,-8s3.59,-8 8,-8 8,3.59 8,8 -3.59,8 -8,8z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M12.5,7L11,7v6l5.25,3.15 0.75,-1.23 -4.5,-2.67z" />
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:rotation="34">
+        <!-- Upper half of the capsule. -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M8,6.2A4,4 0,0 1,16 6.2L16,11.3L8,11.3Z" />
+        <!-- Lower half with the heart cut out (even-odd). -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M8,12.7L16,12.7L16,17.8A4,4 0,0 1,8 17.8Z M12,18.1L10.3,16.5C9.6,15.8 9.8,14.6 10.7,14.4C11.2,14.3 11.7,14.5 12,14.9C12.3,14.5 12.8,14.3 13.3,14.4C14.2,14.6 14.4,15.8 13.7,16.5Z" />
+    </group>
 </vector>

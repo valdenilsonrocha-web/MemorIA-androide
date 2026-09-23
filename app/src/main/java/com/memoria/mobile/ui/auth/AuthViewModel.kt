@@ -104,15 +104,21 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         phone: String,
         lgpdConsent: Boolean,
         onSuccess: () -> Unit,
+        susCard: String = "",
+        gender: String = "not_informed",
     ) {
         when {
             name.isBlank() -> {
-                _state.value = _state.value.copy(error = "Informe o nome completo.")
+                _state.value = _state.value.copy(error = "Preencha todos os campos obrigatórios.")
+                return
+            }
+            name.trim().length < 3 -> {
+                _state.value = _state.value.copy(error = "O nome deve ter pelo menos 3 caracteres.")
                 return
             }
             !lgpdConsent -> {
                 _state.value = _state.value.copy(
-                    error = "Para criar a conta é preciso aceitar a política de privacidade (LGPD).",
+                    error = "É necessário aceitar os termos de compartilhamento de dados.",
                 )
                 return
             }
@@ -120,7 +126,7 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         }
         _state.value = _state.value.copy(loading = true, error = null, serverMessage = null)
         viewModelScope.launch {
-            when (val r = repo.register(cpf, name, password, email, phone, lgpdConsent)) {
+            when (val r = repo.register(cpf, name, password, email, phone, lgpdConsent, susCard, gender)) {
                 is ApiResult.Ok -> {
                     _state.value = _state.value.copy(loading = false, error = null)
                     onSuccess()
@@ -200,13 +206,13 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     private fun validate(cpf: String, password: String, minPassword: Int = 1): Boolean {
         val digits = cpf.filter { it.isDigit() }
         if (digits.length != 11) {
-            _state.value = _state.value.copy(error = "CPF deve ter 11 dígitos.")
+            _state.value = _state.value.copy(error = "CPF deve conter 11 dígitos.")
             return false
         }
         if (password.length < minPassword) {
             _state.value = _state.value.copy(
                 error = if (minPassword > 1) {
-                    "A senha deve ter ao menos $minPassword caracteres."
+                    "A senha deve ter pelo menos $minPassword caracteres."
                 } else {
                     "Informe a sua senha."
                 },

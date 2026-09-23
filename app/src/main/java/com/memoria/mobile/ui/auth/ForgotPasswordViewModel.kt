@@ -62,7 +62,7 @@ class ForgotPasswordViewModel(private val repo: MemoriaRepository) : ViewModel()
                 is ApiResult.Ok -> _state.value = _state.value.copy(
                     working = false,
                     step = RecoveryStep.RESET,
-                    notice = "Se houver uma conta com esse CPF e e-mail, enviamos o código de " +
+                    notice = "Se houver uma conta com esse CPF e e-mail, enviamos o link de " +
                         "recuperação. Confira a sua caixa de entrada e o spam.",
                 )
                 is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)

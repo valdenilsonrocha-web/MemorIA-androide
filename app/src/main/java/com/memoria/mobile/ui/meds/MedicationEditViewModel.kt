@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
 import com.memoria.mobile.data.local.MedicationExtras
+import com.memoria.mobile.data.local.MedicationLook
 import com.memoria.mobile.data.remote.MedicationRequest
 import com.memoria.mobile.data.remote.Supplier
 import com.memoria.mobile.ui.common.PlanLimits
@@ -21,7 +22,12 @@ data class MedEditState(
     val name: String = "",
     val dosage: String = "",
     val frequency: String = "daily",
-    val times: List<String> = emptyList(),
+    /**
+     * One entry per `<input type="time">` of the web form, in order. "" is a
+     * slot the user added but has not filled yet — the web keeps those too and
+     * simply drops them on save.
+     */
+    val times: List<String> = listOf(""),
     val weekDays: List<Int> = emptyList(),
     val stock: String = "0",
     val instructions: String = "",
@@ -34,11 +40,31 @@ data class MedEditState(
     val continuousUse: Boolean = false,
     val prescribingDoctor: String = "",
     val dispensingPharmacy: String = "",
+    // "Ícone do Medicamento" — forma farmacêutica, formato e cores (LocalStore).
+    val medicationForm: String = "comprimido",
+    val pillShape: String = "round",
+    val pillColor: String = "#e5e7eb",
+    val capsuleColor1: String = "#e5e7eb",
+    val capsuleColor2: String = "#2f7dff",
     val isPremium: Boolean = false,
     val saved: Boolean = false,
+    /** The web's success toast, shown by the screen once the save lands. */
+    val savedMessage: String? = null,
     /** Set when the free plan is what stopped the save, so the UI can offer Premium. */
     val blockedByPlan: Boolean = false,
-)
+    /** The web's "✅ Nome (dose) selecionado…" toast after picking from the library. */
+    val libraryMessage: String? = null,
+) {
+    val look: MedicationLook
+        get() = MedicationLook(
+            medicationId = "",
+            medicationForm = medicationForm,
+            pillShape = pillShape,
+            pillColor = pillColor,
+            capsuleColor1 = capsuleColor1,
+            capsuleColor2 = capsuleColor2,
+        )
+}
 
 class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel() {
 
@@ -46,8 +72,15 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
     val state: StateFlow<MedEditState> = _state.asStateFlow()
 
     private var editingId: String? = null
+    private var started = false
+
+    /** [start] for a new medication, unless this form was already started. */
+    fun startIfIdle() {
+        if (!started) start(null)
+    }
 
     fun start(medicationId: String?) {
+        started = true
         editingId = medicationId
         if (medicationId == null) {
             _state.value = MedEditState(isNew = true)
@@ -61,32 +94,39 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
                 is ApiResult.Ok -> {
                     val med = r.value.firstOrNull { it.id == medicationId }
                     if (med == null) {
-                        _state.value = _state.value.copy(loading = false, error = "Medicamento não encontrado.")
+                        _state.value = _state.value.copy(loading = false, error = "❌ Medicamento não encontrado")
                     } else {
                         val extras = repo.local.medicationExtrasFor(medicationId)
+                        val look = repo.local.medicationLookFor(medicationId)
                         _state.value = MedEditState(
                             loading = false,
                             isNew = false,
                             name = med.name,
                             dosage = med.dosage,
                             frequency = med.frequency,
-                            times = med.times,
+                            times = med.times.filter { it.isNotBlank() }.ifEmpty { listOf("") },
                             weekDays = med.weekDays ?: emptyList(),
                             stock = med.stock.toString(),
                             instructions = med.instructions ?: "",
                             supplierName = med.supplier?.name.orEmpty(),
                             supplierPhone = med.supplier?.phone.orEmpty(),
-                            treatmentDurationDays = extras?.treatmentDurationDays?.toString().orEmpty(),
                             continuousUse = extras?.continuousUse ?: false,
+                            treatmentDurationDays = if (extras?.continuousUse == true) "" else
+                                extras?.treatmentDurationDays?.toString().orEmpty(),
                             prescribingDoctor = extras?.prescribingDoctor.orEmpty(),
                             dispensingPharmacy = extras?.dispensingPharmacy.orEmpty(),
+                            medicationForm = normalizeMedicationForm(look?.medicationForm),
+                            pillShape = look?.pillShape ?: "round",
+                            pillColor = sanitizePillColor(look?.pillColor),
+                            capsuleColor1 = sanitizePillColor(look?.capsuleColor1),
+                            capsuleColor2 = sanitizePillColor(look?.capsuleColor2, "#2f7dff"),
                             isPremium = premium,
                         )
                     }
                 }
                 is ApiResult.Err -> _state.value = _state.value.copy(
                     loading = false,
-                    error = r.message,
+                    error = "❌ ${r.message}",
                     isPremium = premium,
                 )
             }
@@ -109,9 +149,7 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
         _state.value = _state.value.copy(treatmentDurationDays = v.filter { it.isDigit() }.take(4))
     }
     fun onContinuousUse(v: Boolean) {
-        // Uso contínuo e duração são mutuamente exclusivos: um tratamento sem fim
-        // não tem um número de dias, e guardar os dois deixava a ficha a
-        // contradizer-se.
+        // `updateContinuousUseFieldState()`: uso contínuo desativa e limpa a duração.
         _state.value = _state.value.copy(
             continuousUse = v,
             treatmentDurationDays = if (v) "" else _state.value.treatmentDurationDays,
@@ -120,14 +158,42 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
     fun onPrescribingDoctor(v: String) { _state.value = _state.value.copy(prescribingDoctor = v) }
     fun onDispensingPharmacy(v: String) { _state.value = _state.value.copy(dispensingPharmacy = v) }
 
-    fun addTime(time: String) {
-        val t = time.trim()
-        if (t.isBlank() || _state.value.times.contains(t)) return
-        _state.value = _state.value.copy(times = (_state.value.times + t).sorted())
+    fun onMedicationForm(v: String) { _state.value = _state.value.copy(medicationForm = normalizeMedicationForm(v)) }
+    fun onPillShape(v: String) { _state.value = _state.value.copy(pillShape = v) }
+    fun onPillColor(v: String) { _state.value = _state.value.copy(pillColor = sanitizePillColor(v)) }
+    fun onCapsuleColor1(v: String) { _state.value = _state.value.copy(capsuleColor1 = sanitizePillColor(v)) }
+    fun onCapsuleColor2(v: String) { _state.value = _state.value.copy(capsuleColor2 = sanitizePillColor(v, "#2f7dff")) }
+
+    /** `applyMedicationFromLibrary()`. */
+    fun applyFromLibrary(med: LibraryMedication, dosage: String) {
+        _state.value = _state.value.copy(
+            name = med.name,
+            dosage = dosage,
+            instructions = med.instructions,
+            frequency = med.frequency.ifBlank { _state.value.frequency },
+            libraryMessage = "✅ ${med.name} ($dosage) selecionado. Defina os horários e salve.",
+        )
     }
 
-    fun removeTime(time: String) {
-        _state.value = _state.value.copy(times = _state.value.times - time)
+    fun consumeLibraryMessage() { _state.value = _state.value.copy(libraryMessage = null) }
+
+    /** "Adicionar Horário": a new, empty time slot. */
+    fun addTimeSlot() {
+        _state.value = _state.value.copy(times = _state.value.times + "")
+    }
+
+    fun setTime(index: Int, time: String) {
+        val list = _state.value.times.toMutableList()
+        if (index !in list.indices) return
+        list[index] = time
+        _state.value = _state.value.copy(times = list)
+    }
+
+    fun removeTimeSlot(index: Int) {
+        val list = _state.value.times.toMutableList()
+        if (index !in list.indices || list.size <= 1) return
+        list.removeAt(index)
+        _state.value = _state.value.copy(times = list)
     }
 
     fun toggleWeekDay(day: Int) {
@@ -141,18 +207,17 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
 
     fun save() {
         val s = _state.value
+        val times = s.times.map { it.trim() }.filter { it.isNotBlank() }
         when {
-            s.name.isBlank() -> { _state.value = s.copy(error = "Informe o nome do medicamento."); return }
-            s.dosage.isBlank() -> { _state.value = s.copy(error = "Informe a dosagem."); return }
-            s.times.isEmpty() -> { _state.value = s.copy(error = "Adicione ao menos um horário."); return }
-            s.frequency == "weekly" && s.weekDays.isEmpty() ->
-                { _state.value = s.copy(error = "Escolha os dias da semana."); return }
+            s.name.isBlank() -> { _state.value = s.copy(error = "⚠️ Informe o nome do medicamento."); return }
+            s.dosage.isBlank() -> { _state.value = s.copy(error = "⚠️ Informe a dosagem."); return }
+            times.isEmpty() -> { _state.value = s.copy(error = "⚠️ Adicione ao menos um horário."); return }
         }
         val request = MedicationRequest(
             name = s.name.trim(),
             dosage = s.dosage.trim(),
             frequency = s.frequency,
-            times = s.times,
+            times = times,
             weekDays = if (s.frequency == "weekly") s.weekDays else null,
             instructions = s.instructions.trim().ifBlank { null },
             stock = s.stock.toIntOrNull() ?: 0,
@@ -174,37 +239,55 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
             if (editingId == null && !allowedToAdd()) {
                 _state.value = _state.value.copy(
                     saving = false,
-                    error = PlanLimits.medicationLimitMessage(),
+                    error = PLAN_LIMIT_MESSAGE,
                     blockedByPlan = true,
                 )
                 return@launch
             }
 
+            val isEdit = editingId != null
             val result = editingId?.let { repo.updateMedication(it, request) }
                 ?: repo.createMedication(request)
             when (result) {
                 is ApiResult.Ok -> {
                     // Saved after the server call, keyed by the id it assigned: a new
                     // medication has no id to file the extras under until then.
-                    result.value.id?.let { id -> saveExtras(id, s) }
-                    _state.value = _state.value.copy(saving = false, saved = true)
+                    (result.value.id ?: editingId)?.let { id -> saveLocal(id, s) }
+                    _state.value = _state.value.copy(
+                        saving = false,
+                        saved = true,
+                        savedMessage = if (isEdit) {
+                            "✅ Medicamento atualizado com sucesso!"
+                        } else {
+                            "✅ Medicamento adicionado com sucesso!"
+                        },
+                    )
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(saving = false, error = result.message)
+                is ApiResult.Err -> _state.value = _state.value.copy(
+                    saving = false,
+                    error = if (isEdit) {
+                        "❌ Erro ao atualizar medicamento. Tente novamente."
+                    } else {
+                        "❌ Erro ao adicionar medicamento. Tente novamente."
+                    },
+                )
             }
         }
     }
 
-    /** The fields the backend has no column for — see [MedicationExtras]. */
-    private suspend fun saveExtras(medicationId: String, s: MedEditState) {
+    /** The fields the backend has no column for — see [MedicationExtras] and [MedicationLook]. */
+    private suspend fun saveLocal(medicationId: String, s: MedEditState) {
         repo.local.saveMedicationExtras(
             MedicationExtras(
                 medicationId = medicationId,
-                treatmentDurationDays = s.treatmentDurationDays.toIntOrNull()?.takeIf { it > 0 },
+                treatmentDurationDays = if (s.continuousUse) null else
+                    s.treatmentDurationDays.toIntOrNull()?.takeIf { it > 0 },
                 continuousUse = s.continuousUse,
                 prescribingDoctor = s.prescribingDoctor.trim(),
                 dispensingPharmacy = s.dispensingPharmacy.trim(),
             )
         )
+        repo.local.saveMedicationLook(s.look.copy(medicationId = medicationId))
     }
 
     /**
@@ -219,4 +302,10 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
     }
 
     fun clearPlanBlock() { _state.value = _state.value.copy(blockedByPlan = false, error = null) }
+
+    private companion object {
+        /** The web's toast in `handleAddMedication()`, word for word. */
+        const val PLAN_LIMIT_MESSAGE =
+            "⭐ No plano gratuito você pode cadastrar até 2 medicamentos. Ative o Premium para medicamentos ilimitados."
+    }
 }

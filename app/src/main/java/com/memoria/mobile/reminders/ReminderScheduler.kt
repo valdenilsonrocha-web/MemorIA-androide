@@ -18,6 +18,9 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.squareup.moshi.JsonAdapter
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.Types
 import kotlin.math.floor
 
 /**
@@ -55,15 +58,57 @@ class ReminderScheduler(
         // reminder for tomorrow's appointment.
         scheduleConsultations(repository.local.consultations())
 
-        val medications = (repository.medications() as? ApiResult.Ok)?.value ?: return
-        val history = (repository.history(limit = 200) as? ApiResult.Ok)?.value.orEmpty()
+        // The last list the server gave is kept on the phone, so a reboot with no
+        // signal (BootReceiver) still re-arms every dose instead of none.
+        val medications = (repository.medications() as? ApiResult.Ok)?.value
+            ?.also { cache(KEY_CACHED_MEDS, medsAdapter, it) }
+            ?: cached(KEY_CACHED_MEDS, medsAdapter)
+            ?: return
+        // Sends the doses answered offline, then treats any still queued as taken
+        // so their alarms are not re-armed.
+        DoseActions.flushPending(repository)
+        val history = ((repository.history(limit = 200) as? ApiResult.Ok)?.value
+            ?.also { cache(KEY_CACHED_HISTORY, historyAdapter, it) }
+            ?: cached(KEY_CACHED_HISTORY, historyAdapter).orEmpty()) +
+            DoseActions.pendingHistory(repository)
         val active = medications.filter { it.active }
-        scheduleFrom(active, history, repository.snoozeMinutes(), repository.reminderSound())
+        val extras = repository.local.medicationExtras()
+        scheduleFrom(active, history, repository.snoozeMinutes(), repository.reminderSound(), extras)
         scheduleStockAlerts(
             medications = active,
             enabled = repository.lowStockAlertsEnabled(),
-            extras = repository.local.medicationExtras(),
+            extras = extras,
         )
+    }
+
+    private val moshi: Moshi by lazy { Moshi.Builder().build() }
+    private val medsAdapter: JsonAdapter<List<Medication>> by lazy {
+        moshi.adapter(Types.newParameterizedType(List::class.java, Medication::class.java))
+    }
+    private val historyAdapter: JsonAdapter<List<HistoryEntry>> by lazy {
+        moshi.adapter(Types.newParameterizedType(List::class.java, HistoryEntry::class.java))
+    }
+
+    private fun <T> cache(key: String, adapter: JsonAdapter<List<T>>, items: List<T>) {
+        runCatching { prefs().edit().putString(key, adapter.toJson(items)).apply() }
+    }
+
+    private fun <T> cached(key: String, adapter: JsonAdapter<List<T>>): List<T>? =
+        prefs().getString(key, null)?.let { raw -> runCatching { adapter.fromJson(raw) }.getOrNull() }
+
+    /**
+     * `isMedicationActiveOnDate()` of the web: a medication with a set
+     * treatment length stops reminding once it is over (continuous use never
+     * does). The start is the creation date, the web's
+     * `treatmentStartDate || createdAt`.
+     */
+    private fun inTreatment(med: Medication, date: LocalDate, extras: Map<String, MedicationExtras>): Boolean {
+        val extra = med.id?.let { extras[it] } ?: return true
+        if (extra.continuousUse) return true
+        val duration = extra.treatmentDurationDays?.takeIf { it > 0 } ?: return true
+        val start = Schedule.localDateOf(med.createdAt) ?: return true
+        val elapsed = java.time.temporal.ChronoUnit.DAYS.between(start, date)
+        return elapsed in 0 until duration
     }
 
     /** Same as [reschedule] but from data the caller already has in hand. */
@@ -71,18 +116,21 @@ class ReminderScheduler(
         medications: List<Medication>,
         history: List<HistoryEntry>,
         snooze: Int = DEFAULT_SNOOZE_MINUTES,
-        soundId: String = ReminderSound.PADRAO.id,
+        soundId: String = ReminderSound.SYSTEM.id,
+        extras: List<MedicationExtras> = emptyList(),
     ) {
         val manager = alarmManager ?: return
         val now = LocalDateTime.now()
         val horizon = now.plusHours(WINDOW_HOURS)
+        val extrasById = extras.associateBy { it.medicationId }
 
         cancelTracked()
 
         val alarms = mutableListOf<DoseAlarm>()
         var date = now.toLocalDate()
         while (date <= horizon.toLocalDate() && alarms.size < MAX_ALARMS) {
-            val slots = Schedule.slotsFor(medications, date)
+            val day = date
+            val slots = Schedule.slotsFor(medications.filter { inTreatment(it, day, extrasById) }, date)
             val answered = Schedule.withHistory(slots, history, date)
             for (slot in answered) {
                 if (slot.doneStatus != null) continue
@@ -192,9 +240,8 @@ class ReminderScheduler(
             val stock = med.stock.coerceAtLeast(0)
             val daily = Schedule.estimatedDailyDoses(med)
             val days = if (daily > 0) floor(stock / daily).toInt() else -1
-            val low = stock <= 0 ||
-                stock <= LOW_STOCK_UNITS ||
-                (days in 0..LOW_STOCK_DAYS)
+            // `getMedicationsNeedingAttention()` of the web: fewer than 7 doses left.
+            val low = stock < WEB_LOW_STOCK_DOSES
             if (!low) return@mapNotNull null
             StockAlarm(
                 medicationId = id,
@@ -260,6 +307,8 @@ class ReminderScheduler(
             .remove(KEY_ARMED)
             .remove(KEY_ARMED_CONSULTATIONS)
             .remove(KEY_ARMED_STOCK)
+            .remove(KEY_CACHED_MEDS)
+            .remove(KEY_CACHED_HISTORY)
             .apply()
     }
 
@@ -420,6 +469,8 @@ class ReminderScheduler(
         private const val KEY_ARMED = "armed_alarms"
         private const val KEY_ARMED_CONSULTATIONS = "armed_consultation_alarms"
         private const val KEY_ARMED_STOCK = "armed_stock_alarms"
+        private const val KEY_CACHED_MEDS = "cached_medications"
+        private const val KEY_CACHED_HISTORY = "cached_history"
 
         /** Unit separator: cannot occur in a name, dosage, time or date. */
         private val FIELD_SEPARATOR = Char(0x1F).toString()
@@ -449,6 +500,9 @@ class ReminderScheduler(
          */
         const val LOW_STOCK_UNITS = 5
         const val LOW_STOCK_DAYS = 3
+
+        /** `reminderService.getMedicationsNeedingAttention()`: `stock < 7`. */
+        const val WEB_LOW_STOCK_DOSES = 7
 
         const val DEFAULT_SNOOZE_MINUTES = 10
 

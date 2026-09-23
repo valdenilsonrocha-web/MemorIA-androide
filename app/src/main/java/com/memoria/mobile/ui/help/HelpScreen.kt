@@ -12,22 +12,26 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.RemoveCircle
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,43 +45,68 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import com.memoria.mobile.ui.common.BackTopBar
+import androidx.compose.ui.unit.sp
+import com.memoria.mobile.ui.common.PageGuide
+import com.memoria.mobile.ui.common.PageTitle
+import com.memoria.mobile.ui.common.PageTopGuide
 import com.memoria.mobile.ui.common.SectionCard
-import com.memoria.mobile.ui.theme.GreenOk
 import kotlinx.coroutines.launch
 
+/**
+ * A step of the web's "Tutorial Rápido". Text between `**` is bold, as the web's
+ * `<strong>`. The illustration is the web's inline SVG: an emoji on a pastel card.
+ */
+private data class TutorialStep(val title: String, val text: String, val emoji: String, val background: Color)
+
 private val TUTORIAL_STEPS = listOf(
-    "Adicione seus Medicamentos" to
-        "Toque no botão + na tela Início e preencha as informações do seu medicamento.",
-    "Ative as Notificações" to
-        "Vá em Mais > Otimização do App e siga os passos para receber os lembretes na hora certa.",
-    "Confirme quando Tomar" to
-        "Quando o lembrete chegar, toque em Tomei para registrar. Use Adiar se precisar de mais tempo.",
-    "Acompanhe no Histórico" to
-        "Veja todos os medicamentos tomados na aba Histórico e acompanhe sua adesão em Relatórios.",
+    TutorialStep(
+        "Adicione seus Medicamentos",
+        "Clique no botão **Adicionar** na barra inferior e preencha as informações do seu medicamento.",
+        "➕", Color(0xFFE8F4F8),
+    ),
+    TutorialStep(
+        "Ative as Notificações",
+        "Vá em **Configurações** e clique em **Ativar Notificações** para receber lembretes.",
+        "🔔", Color(0xFFFFF3E0),
+    ),
+    TutorialStep(
+        "Confirme quando Tomar",
+        "Quando o alarme tocar, clique em **Tomei** para registrar. Use **Soneca** se precisar adiar.",
+        "✅", Color(0xFFE8F5E9),
+    ),
+    TutorialStep(
+        "Acompanhe no Histórico",
+        "Veja todos os medicamentos tomados na aba **Histórico** e acompanhe sua adesão.",
+        "📊", Color(0xFFF3E5F5),
+    ),
 )
 
+// Perguntas e respostas da web, palavra por palavra (index.html `.faq-list`).
 private val FAQ = listOf(
     "Como adiciono múltiplos horários para um medicamento?" to
-        "Na tela de cadastro do medicamento, depois de preencher o primeiro horário, toque em " +
-        "Adicionar horário para incluir mais horários no mesmo dia.",
+        "No formulário de adicionar medicamento, após preencher o primeiro horário, clique em " +
+        "**\"Adicionar Horário\"** para incluir mais horários no mesmo dia.",
     "O que fazer se não recebo notificações?" to
-        "Vá em Mais > Otimização do App e siga o passo a passo de bateria e notificações. " +
-        "A maioria dos celulares pausa apps em segundo plano por padrão.",
+        "Verifique se você permitiu notificações nas configurações do navegador. Vá em " +
+        "Configurações > Ativar Notificações e siga as instruções.",
     "Como edito um medicamento já cadastrado?" to
-        "Na tela Início, toque no medicamento para abrir os detalhes e depois em Editar.",
-    "Meus dados ficam guardados onde?" to
-        "Medicamentos, histórico e receitas ficam no servidor MemorIA, ligados à sua conta. " +
-        "Medições de saúde, rede de cuidado e consultas ficam apenas neste celular.",
+        "Na tela inicial, clique no medicamento que deseja editar para ver os detalhes. Depois " +
+        "clique em **\"Editar\"**.",
+    "Posso usar o aplicativo sem internet?" to
+        "Sim! O MemorIA funciona completamente offline. Todos os dados ficam salvos no seu navegador.",
     "Como faço backup dos meus dados?" to
-        "Entre na sua conta em outro aparelho: medicamentos, histórico e receitas são " +
-        "sincronizados automaticamente pelo servidor.",
+        "Vá em Configurações e clique em **\"Exportar Dados\"**. Isso criará um arquivo com " +
+        "todas as suas informações.",
     "O aplicativo é gratuito?" to
-        "Sim, as funções essenciais são gratuitas. O plano Premium libera relatórios avançados, " +
-        "receitas por foto e alertas para contatos.",
+        "Sim! O MemorIA é 100% gratuito e de código aberto. Não há custos nem taxas.",
 )
 
 private val TIPS = listOf(
@@ -109,8 +138,7 @@ fun HelpScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { BackTopBar("Ajuda e Tutorial", onBack) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { com.memoria.mobile.ui.common.MemoriaSnackbar(it) } },
     ) { inner ->
         Column(
             Modifier
@@ -120,57 +148,85 @@ fun HelpScreen(onBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                "Aprenda a usar o MemorIA",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // `showPageTopGuide()` prepends the illustration to the page, ABOVE its header.
+            Column {
+                PageTopGuide(PageGuide.HELP)
+                PageTitle("Ajuda e Tutorial", subtitle = "Aprenda a usar o MemorIA")
+            }
 
             SectionCard("Tutorial Rápido", icon = Icons.Filled.PlayCircle) {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    TUTORIAL_STEPS.forEachIndexed { index, (title, description) ->
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    TUTORIAL_STEPS.forEachIndexed { index, step ->
                         Row {
                             Box(
                                 Modifier
-                                    .size(32.dp)
+                                    .size(48.dp)
                                     .clip(CircleShape)
                                     .background(MaterialTheme.colorScheme.primary),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     "${index + 1}",
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    color = Color.White,
                                 )
                             }
-                            Column(Modifier.padding(start = 12.dp)) {
-                                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            Column(
+                                Modifier.padding(start = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Text(step.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    description,
+                                    rich(step.text),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                                Box(
+                                    Modifier
+                                        .widthIn(max = 200.dp)
+                                        .fillMaxWidth()
+                                        .height(120.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(step.background),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(step.emoji, fontSize = 48.sp)
+                                }
                             }
                         }
                     }
                 }
             }
 
-            SectionCard("Perguntas Frequentes", icon = Icons.AutoMirrored.Filled.HelpOutline) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            SectionCard("Perguntas Frequentes", icon = Icons.AutoMirrored.Filled.Help) { // fa-question-circle
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     FAQ.forEach { (question, answer) -> FaqItem(question, answer) }
                 }
             }
 
             SectionCard("Dicas de Uso", icon = Icons.Filled.Lightbulb) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     TIPS.forEach { tip ->
-                        Row {
-                            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = GreenOk)
+                        // `.tip-item`: --bg-secondary box, 16px padding and gap.
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.background)
+                                .padding(16.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(24.dp),
+                            )
                             Text(
-                                "  $tip",
+                                tip,
                                 style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 16.dp),
                             )
                         }
                     }
@@ -178,24 +234,34 @@ fun HelpScreen(onBack: () -> Unit) {
             }
 
             SectionCard("Precisa de Mais Ajuda?", icon = Icons.Filled.Email) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // `.contact-help`: --bg-secondary box.
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
                         "Se você ainda tiver dúvidas ou precisar de suporte, entre em contato:",
                         style = MaterialTheme.typography.bodyLarge,
                     )
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             open(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$SUPPORT_EMAIL")))
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(SUPPORT_EMAIL)
+                        Icon(Icons.Filled.Email, contentDescription = null)
+                        Text("  $SUPPORT_EMAIL")
                     }
-                    OutlinedButton(
+                    Button(
                         onClick = { open(Intent(Intent.ACTION_VIEW, Uri.parse(SUPPORT_WHATSAPP))) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Falar pelo WhatsApp")
+                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
+                        Text("  Falar pelo WhatsApp")
                     }
                 }
             }
@@ -203,28 +269,45 @@ fun HelpScreen(onBack: () -> Unit) {
     }
 }
 
+/** `**negrito**` → bold span, standing in for the web's `<strong>`. */
+private fun rich(text: String): AnnotatedString = buildAnnotatedString {
+    text.split("**").forEachIndexed { i, part ->
+        if (i % 2 == 1) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part) } else append(part)
+    }
+}
+
+/** The web's `<details class="faq-item">`: plus/minus circle, question in primary. */
 @Composable
 private fun FaqItem(question: String, answer: String) {
     var expanded by remember { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.background) // --bg-secondary
             .clickable { expanded = !expanded }
-            .padding(vertical = 8.dp),
+            .padding(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(question, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Icon(
-                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                if (expanded) Icons.Filled.RemoveCircle else Icons.Filled.AddCircle,
                 contentDescription = if (expanded) "Recolher" else "Expandir",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                question,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f).padding(start = 12.dp),
             )
         }
         AnimatedVisibility(visible = expanded) {
             Text(
-                answer,
+                rich(answer),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp),
+                modifier = Modifier.padding(top = 12.dp, start = 36.dp),
             )
         }
     }

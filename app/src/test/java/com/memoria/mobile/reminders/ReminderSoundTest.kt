@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * Each sound profile MUST own a distinct channel id: Android freezes a channel's
  * sound and importance at creation, so two profiles sharing an id would make the
- * setting silently do nothing — the user would pick "Alto" and keep hearing the
+ * setting silently do nothing — the user would pick "Alerta" and keep hearing the
  * quiet tone, with no error anywhere to explain it.
  */
 class ReminderSoundTest {
@@ -19,11 +19,12 @@ class ReminderSoundTest {
     }
 
     @Test
-    fun `an unknown or missing id falls back to the default profile`() {
+    fun `an unknown or missing id falls back to the web default`() {
         // Stale preferences (an id written by another build) must not crash a screen.
-        assertEquals(ReminderSound.PADRAO, ReminderSound.from(null))
-        assertEquals(ReminderSound.PADRAO, ReminderSound.from(""))
-        assertEquals(ReminderSound.PADRAO, ReminderSound.from("ultra-alto"))
+        // The web's default is "system" (Padrão do sistema).
+        assertEquals(ReminderSound.SYSTEM, ReminderSound.from(null))
+        assertEquals(ReminderSound.SYSTEM, ReminderSound.from(""))
+        assertEquals(ReminderSound.SYSTEM, ReminderSound.from("ultra-alto"))
     }
 
     @Test
@@ -32,9 +33,17 @@ class ReminderSoundTest {
     }
 
     @Test
-    fun `the discreet profile is the only one without vibration`() {
-        assertEquals(null, ReminderSound.SUAVE.vibrationPattern)
-        assertNotEquals(null, ReminderSound.PADRAO.vibrationPattern)
-        assertNotEquals(null, ReminderSound.ALTO.vibrationPattern)
+    fun `silent is the only option without vibration`() {
+        assertEquals(null, ReminderSound.SILENT.vibrationPattern)
+        ReminderSound.entries.filter { it != ReminderSound.SILENT }
+            .forEach { assertNotEquals(null, it.vibrationPattern) }
+    }
+
+    @Test
+    fun `the settings list is the web nine options in order`() {
+        assertEquals(
+            listOf("system", "chime", "bell", "ping", "ding", "alert", "gentle", "vibrate", "silent"),
+            ReminderSound.webOptions.map { it.id },
+        )
     }
 }

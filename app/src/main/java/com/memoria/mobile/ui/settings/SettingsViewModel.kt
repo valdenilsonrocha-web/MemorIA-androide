@@ -1,24 +1,34 @@
 package com.memoria.mobile.ui.settings
 
 import android.app.Application
-import androidx.core.app.NotificationManagerCompat
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
+import com.memoria.mobile.data.remote.ConsultationPayload
+import com.memoria.mobile.data.remote.ProfileUpdateRequest
 import com.memoria.mobile.data.remote.User
+import com.memoria.mobile.data.remote.VitalSignsPayload
 import com.memoria.mobile.data.remote.VoiceAssistantConfig
-import com.memoria.mobile.reminders.DoseAlarm
 import com.memoria.mobile.reminders.MemoriaNotifications
 import com.memoria.mobile.reminders.ReminderScheduler
 import com.memoria.mobile.reminders.ReminderSound
 import com.memoria.mobile.ui.theme.ThemePreset
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.LocalTime
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 data class SettingsUiState(
@@ -30,29 +40,49 @@ data class SettingsUiState(
     val checking: Boolean = false,
     val reachable: Boolean? = null,
     val hasSavedCredentials: Boolean = false,
+    /** Web `apiService.isAuthenticated()`: a session token exists. */
+    val hasToken: Boolean = false,
     val notificationsAllowed: Boolean = false,
     val exactAlarmsAllowed: Boolean = true,
+    // Defaults = the web's `storageService.getDefaultSettings()`.
     val snoozeMinutes: Int = ReminderScheduler.DEFAULT_SNOOZE_MINUTES,
     val reminderSound: ReminderSound = ReminderSound.PADRAO,
+    /** The web disables `#testSoundBtn` for 1.2 s after each press. */
+    val soundTesting: Boolean = false,
     val lowStockAlerts: Boolean = true,
     val themePreset: String = ThemePreset.PASTEL_AZUL.id,
+    /** "a" (suave) | "b" (alto contraste) — web `reportsGuideVariant`. */
+    val reportsGuideVariant: String = "a",
     val emergencyAlertMode: String = "auto",
     // Relatório automático por e-mail (guardado no servidor)
     val reportEnabled: Boolean = false,
     val reportFrequency: String = "weekly",
     val reportContactEmail: String = "",
+    /** The e-mail as last saved — the web's status line reads the saved value, not the field. */
+    val reportSavedEmail: String = "",
     val reportSaving: Boolean = false,
     val lastReportSentAt: String? = null,
+    // Privacidade e LGPD — o interruptor só vale depois de "Salvar Consentimento LGPD".
+    val consentToggle: Boolean = false,
+    val consentSaving: Boolean = false,
     // Assistente de voz (Alexa / Echo Dot)
     val voiceLoading: Boolean = false,
     val voiceSaving: Boolean = false,
-    val voiceTesting: Boolean = false,
     val voiceEnabled: Boolean = false,
+    /** What was last saved — drives the "Integração ativa" line, as on the web. */
+    val voiceSavedEnabled: Boolean = false,
     val voiceProvider: String = "alexa",
+    val voiceSavedProvider: String = "alexa",
     val voiceDeviceName: String = "",
     val voiceWebhookUrl: String = "",
+    // Sincronização Online
+    val syncing: Boolean = false,
+    val lastSyncAtMillis: Long? = null,
+    val exporting: Boolean = false,
 ) {
     val isPremium: Boolean get() = user?.isPremium == true
+    val isLoggedIn: Boolean get() = user != null
+    val consentDate: String? get() = user?.consentDate
 }
 
 class SettingsViewModel(
@@ -64,42 +94,82 @@ class SettingsViewModel(
     private val _state = MutableStateFlow(SettingsUiState(baseUrl = repo.currentBaseUrl()))
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
 
+    /** Bytes of "Exportar Dados" waiting for the user to pick a file. Kept out of the data class on purpose. */
+    private val _pendingExport = MutableStateFlow<ByteArray?>(null)
+    val pendingExport: StateFlow<ByteArray?> = _pendingExport.asStateFlow()
+
+    private var player: MediaPlayer? = null
+
     fun load() {
         _state.value = _state.value.copy(loading = true, baseUrl = repo.currentBaseUrl())
         viewModelScope.launch {
-            // Local preferences first: they resolve without the network, so sound,
-            // theme and snooze stay usable even when the server cannot be reached.
-            _state.value = _state.value.copy(
-                hasSavedCredentials = repo.credentials.hasSaved(),
-                snoozeMinutes = repo.snoozeMinutes(),
-                reminderSound = ReminderSound.from(repo.reminderSound()),
-                lowStockAlerts = repo.lowStockAlertsEnabled(),
-                themePreset = repo.themePreset(),
-                emergencyAlertMode = repo.emergencyAlertMode(),
-                notificationsAllowed = MemoriaNotifications.canPost(app),
-                exactAlarmsAllowed = scheduler.canScheduleExact(),
-            )
-
+            loadLocalPreferences()
             when (val r = repo.me()) {
-                is ApiResult.Ok -> {
-                    val report = r.value.reportSettings
-                    _state.value = _state.value.copy(
-                        loading = false,
-                        user = r.value,
-                        reportEnabled = report?.enabled ?: false,
-                        reportFrequency = report?.frequency ?: "weekly",
-                        reportContactEmail = report?.contactEmail?.ifBlank { r.value.email }
-                            ?: r.value.email,
-                        lastReportSentAt = report?.lastReportSentAt,
-                    )
-                    if (r.value.isPremium) loadVoiceAssistant()
-                }
+                is ApiResult.Ok -> applyUser(r.value, markSynced = true)
                 is ApiResult.Err -> _state.value = _state.value.copy(
                     loading = false,
                     error = r.message,
                 )
             }
         }
+    }
+
+    /**
+     * Local preferences resolve without the network, so sound, theme and snooze
+     * stay usable even when the server cannot be reached.
+     */
+    private suspend fun loadLocalPreferences() {
+        _state.value = _state.value.copy(
+            hasSavedCredentials = repo.credentials.hasSaved(),
+            hasToken = repo.isLoggedIn(),
+            snoozeMinutes = repo.snoozeMinutes(),
+            reminderSound = ReminderSound.from(repo.reminderSound()),
+            lowStockAlerts = repo.lowStockAlertsEnabled(),
+            themePreset = repo.themePreset(),
+            reportsGuideVariant = if (repo.local.uiSetting(KEY_REPORTS_VARIANT) == "b") "b" else "a",
+            emergencyAlertMode = repo.emergencyAlertMode(),
+            notificationsAllowed = MemoriaNotifications.canPost(app),
+            exactAlarmsAllowed = scheduler.canScheduleExact(),
+            lastSyncAtMillis = repo.local.uiSetting(KEY_LAST_SYNC)?.toLongOrNull(),
+        )
+    }
+
+    private suspend fun applyUser(user: User, markSynced: Boolean) {
+        val report = user.reportSettings
+        val now = System.currentTimeMillis()
+        if (markSynced) repo.local.setUiSetting(KEY_LAST_SYNC, now.toString())
+        // Web: `reportAutomation.contactEmail || currentUser.reportSettings.contactEmail || currentUser.email`.
+        val email = report?.contactEmail?.ifBlank { null } ?: user.email
+        _state.value = _state.value.copy(
+            loading = false,
+            user = user,
+            reportEnabled = report?.enabled ?: false,
+            reportFrequency = if (report?.frequency == "monthly") "monthly" else "weekly",
+            reportContactEmail = email,
+            reportSavedEmail = email,
+            lastReportSentAt = report?.lastReportSentAt,
+            consentToggle = user.consentDate != null,
+            lastSyncAtMillis = if (markSynced) now else _state.value.lastSyncAtMillis,
+        )
+        if (user.isPremium) loadVoiceAssistant()
+    }
+
+    /** Called when the screen comes back from the system permission dialog. */
+    fun refreshPermissions() {
+        _state.value = _state.value.copy(
+            notificationsAllowed = MemoriaNotifications.canPost(app),
+            exactAlarmsAllowed = scheduler.canScheduleExact(),
+        )
+    }
+
+    fun onNotificationPermissionResult(granted: Boolean) {
+        val allowed = granted || MemoriaNotifications.canPost(app)
+        _state.value = _state.value.copy(
+            notificationsAllowed = allowed,
+            message = if (allowed) "✅ Notificações ativadas!" else null,
+            error = if (allowed) null else "❌ Permissão de notificação negada",
+        )
+        if (allowed) viewModelScope.launch { scheduler.reschedule() }
     }
 
     // ---- Lembretes ----
@@ -110,7 +180,7 @@ class SettingsViewModel(
             repo.setSnoozeMinutes(minutes)
             // Pending alarms carry the old snooze in their Intent, so re-arm.
             scheduler.reschedule()
-            _state.value = _state.value.copy(message = "Soneca definida em $minutes minutos.")
+            _state.value = _state.value.copy(message = SAVED)
         }
     }
 
@@ -124,7 +194,51 @@ class SettingsViewModel(
         viewModelScope.launch {
             repo.setReminderSound(sound.id)
             scheduler.reschedule()
-            _state.value = _state.value.copy(message = "Som do lembrete: ${sound.label}.")
+            _state.value = _state.value.copy(message = SAVED)
+        }
+    }
+
+    /**
+     * "Testar" — the web's `testSoundBtn`: plays the tone picked in the select
+     * (and its vibration pattern) without posting anything, then keeps the button
+     * disabled for 1.2 s. An id outside the select (the onboarding's "default")
+     * tests as "system", exactly as `value || 'system'` does on the web.
+     */
+    fun testSound() {
+        if (_state.value.soundTesting) return
+        val sound = _state.value.reminderSound.takeIf { it in ReminderSound.webOptions } ?: ReminderSound.SYSTEM
+        _state.value = _state.value.copy(soundTesting = true)
+
+        player?.release()
+        player = null
+        sound.soundUri?.let { uri ->
+            player = runCatching {
+                MediaPlayer().apply {
+                    setAudioAttributes(sound.audioAttributes)
+                    setDataSource(app, uri)
+                    setOnCompletionListener { mp ->
+                        mp.release()
+                        if (player === mp) player = null
+                    }
+                    prepare()
+                    start()
+                }
+            }.getOrNull()
+        }
+        sound.vibrationPattern?.let { pattern ->
+            runCatching {
+                val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    app.getSystemService(VibratorManager::class.java)?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    app.getSystemService(Vibrator::class.java)
+                }
+                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            }
+        }
+        viewModelScope.launch {
+            delay(1200)
+            _state.value = _state.value.copy(soundTesting = false)
         }
     }
 
@@ -133,56 +247,33 @@ class SettingsViewModel(
         viewModelScope.launch {
             repo.setLowStockAlertsEnabled(enabled)
             scheduler.reschedule()
-            _state.value = _state.value.copy(
-                message = if (enabled) {
-                    "Vamos avisar quando um remédio estiver a acabar."
-                } else {
-                    "Avisos de estoque desligados."
-                },
-            )
+            _state.value = _state.value.copy(message = SAVED)
         }
     }
 
     fun setThemePreset(preset: String) {
         _state.value = _state.value.copy(themePreset = preset)
-        // No snackbar: the whole app repaints, which is feedback enough.
-        viewModelScope.launch { repo.setThemePreset(preset) }
+        viewModelScope.launch {
+            repo.setThemePreset(preset)
+            _state.value = _state.value.copy(message = SAVED)
+        }
+    }
+
+    fun setReportsGuideVariant(variant: String) {
+        val v = if (variant == "b") "b" else "a"
+        _state.value = _state.value.copy(reportsGuideVariant = v)
+        viewModelScope.launch {
+            repo.local.setUiSetting(KEY_REPORTS_VARIANT, v)
+            _state.value = _state.value.copy(message = SAVED)
+        }
     }
 
     fun setEmergencyAlertMode(mode: String) {
         _state.value = _state.value.copy(emergencyAlertMode = mode)
-        viewModelScope.launch { repo.setEmergencyAlertMode(mode) }
-    }
-
-    /**
-     * Posts a reminder right now so the user can confirm — before a real dose is
-     * at stake — that the alert breaks through their phone's settings, in the
-     * sound profile they just picked.
-     */
-    fun sendTestNotification() {
-        MemoriaNotifications.ensureChannels(app)
-        if (!MemoriaNotifications.canPost(app)) {
-            _state.value = _state.value.copy(
-                notificationsAllowed = false,
-                error = "As notificações estão bloqueadas. Abra as notificações do sistema e permita o MemorIA.",
-            )
-            return
+        viewModelScope.launch {
+            repo.setEmergencyAlertMode(mode)
+            _state.value = _state.value.copy(message = SAVED)
         }
-        val dose = DoseAlarm(
-            medicationId = "teste",
-            medicationName = "Teste do MemorIA",
-            dosage = "Exemplo",
-            instructions = "Se você está vendo isto, os lembretes funcionam.",
-            time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
-            date = LocalDate.now().toString(),
-            snoozeMinutes = _state.value.snoozeMinutes,
-            soundId = _state.value.reminderSound.id,
-        )
-        NotificationManagerCompat.from(app).notify(
-            dose.requestCode,
-            MemoriaNotifications.buildDoseNotification(app, dose, _state.value.reminderSound),
-        )
-        _state.value = _state.value.copy(message = "Lembrete de teste enviado.")
     }
 
     // ---- Relatório automático por e-mail ----
@@ -202,50 +293,94 @@ class SettingsViewModel(
     }
 
     /**
-     * Saves the automated-report settings on the server — the switch behind the
-     * whole weekly-report feature. With it on, the server mails the caregiver a
-     * period summary of doses taken and missed, the health measurements logged on
-     * the phone, and the consultations coming up.
-     *
-     * The address is validated here because the server answers a bad one with a
-     * generic 400. An EMPTY address is allowed on purpose: it tells the server to
-     * fall back to the account's own e-mail.
+     * The web's `saveSettings()` + `syncAutomatedReportSettingsToBackend()`:
+     * "✅ Configurações salvas" shows at once, and the report settings go to
+     * `PUT /api/auth/profile` with the same payload the web sends
+     * (`reportAutoSendEnabled`, `reportFrequency`, `reportContactEmail || null`,
+     * `medicalConsultations`, `healthVitalSigns`). An enabled report without a
+     * valid e-mail is not sent upstream; a failed sync is silent, as on the web.
      */
     fun saveReportSettings() {
         val s = _state.value
-        val email = s.reportContactEmail.trim()
-        if (email.isNotBlank() && !email.matches(EMAIL)) {
-            _state.value = s.copy(error = "E-mail de contato inválido.")
+        val email = s.reportContactEmail.trim().lowercase()
+        _state.value = s.copy(reportSavedEmail = email, message = SAVED)
+        if (!s.isLoggedIn) return
+        if (s.reportEnabled && !isValidEmail(email)) return
+        _state.value = _state.value.copy(reportSaving = true)
+        viewModelScope.launch {
+            val request = ProfileUpdateRequest(
+                reportAutoSendEnabled = s.reportEnabled,
+                reportFrequency = if (s.reportFrequency == "monthly") "monthly" else "weekly",
+                // Moshi drops nulls, and the server turns "" into null: both mean "no e-mail".
+                reportContactEmail = email,
+                medicalConsultations = consultationsPayload(),
+                healthVitalSigns = vitalSignsPayload(),
+            )
+            when (val r = repo.updateProfile(request)) {
+                is ApiResult.Ok -> _state.value = _state.value.copy(
+                    reportSaving = false,
+                    user = r.value,
+                    lastReportSentAt = r.value.reportSettings?.lastReportSentAt ?: _state.value.lastReportSentAt,
+                )
+                is ApiResult.Err -> _state.value = _state.value.copy(reportSaving = false)
+            }
+        }
+    }
+
+    private suspend fun vitalSignsPayload(): List<VitalSignsPayload> =
+        repo.local.vitalSigns().map {
+            VitalSignsPayload(
+                date = it.date,
+                systolic = it.systolic,
+                diastolic = it.diastolic,
+                heartRate = it.heartRate,
+                spo2 = it.spo2,
+                glucose = it.glucose,
+                glucoseContext = it.glucoseContext,
+                hba1c = it.hba1c,
+                temperature = it.temperature,
+            )
+        }
+
+    private suspend fun consultationsPayload(): List<ConsultationPayload> =
+        repo.local.consultations().map {
+            ConsultationPayload(
+                id = it.id,
+                dateTime = isoFromLocal(it.dateTime),
+                professional = it.professional,
+                location = it.location,
+                notes = it.notes,
+            )
+        }
+
+    /** `datetime-local` has no zone; the server wants a real instant. */
+    private fun isoFromLocal(raw: String): String = runCatching {
+        LocalDateTime.parse(raw).atZone(ZoneId.systemDefault()).toOffsetDateTime()
+            .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+    }.getOrDefault(raw)
+
+    // ---- Privacidade e LGPD ----
+
+    fun onConsentToggle(checked: Boolean) { _state.value = _state.value.copy(consentToggle = checked) }
+
+    fun saveConsent() {
+        val consent = _state.value.consentToggle
+        if (!_state.value.isLoggedIn) {
+            _state.value = _state.value.copy(error = "⚠️ Faça login para atualizar o consentimento LGPD na nuvem.")
             return
         }
-        _state.value = s.copy(reportSaving = true)
+        _state.value = _state.value.copy(consentSaving = true)
         viewModelScope.launch {
-            when (
-                val r = repo.setReportSettings(
-                    enabled = s.reportEnabled,
-                    frequency = s.reportFrequency,
-                    contactEmail = email,
+            when (val r = repo.setConsent(consent)) {
+                is ApiResult.Ok -> _state.value = _state.value.copy(
+                    consentSaving = false,
+                    user = r.value,
+                    consentToggle = r.value.consentDate != null,
+                    message = if (consent) "✅ Consentimento LGPD atualizado." else "✅ Consentimento LGPD revogado.",
                 )
-            ) {
-                is ApiResult.Ok -> {
-                    val report = r.value.reportSettings
-                    _state.value = _state.value.copy(
-                        reportSaving = false,
-                        user = r.value,
-                        reportEnabled = report?.enabled ?: s.reportEnabled,
-                        reportFrequency = report?.frequency ?: s.reportFrequency,
-                        reportContactEmail = report?.contactEmail?.ifBlank { r.value.email } ?: email,
-                        lastReportSentAt = report?.lastReportSentAt,
-                        message = if (report?.enabled == true) {
-                            "Relatório automático ligado."
-                        } else {
-                            "Relatório automático desligado."
-                        },
-                    )
-                }
                 is ApiResult.Err -> _state.value = _state.value.copy(
-                    reportSaving = false,
-                    error = r.message,
+                    consentSaving = false,
+                    error = "❌ Erro ao atualizar consentimento LGPD: ${r.message}",
                 )
             }
         }
@@ -260,7 +395,9 @@ class SettingsViewModel(
                 is ApiResult.Ok -> _state.value = _state.value.copy(
                     voiceLoading = false,
                     voiceEnabled = r.value.enabled,
+                    voiceSavedEnabled = r.value.enabled,
                     voiceProvider = r.value.provider,
+                    voiceSavedProvider = r.value.provider,
                     voiceDeviceName = r.value.deviceName,
                     voiceWebhookUrl = r.value.webhookUrl,
                 )
@@ -276,65 +413,123 @@ class SettingsViewModel(
     fun onVoiceDeviceName(name: String) { _state.value = _state.value.copy(voiceDeviceName = name) }
     fun onVoiceWebhookUrl(url: String) { _state.value = _state.value.copy(voiceWebhookUrl = url) }
 
+    /**
+     * The web's `saveVoiceAssistantSettings()`: the status line and the toast
+     * update at once; the `PUT /api/integrations/voice-assistant/config` runs
+     * behind them and a failure is swallowed (`.catch(() => {})`).
+     */
     fun saveVoiceAssistant() {
         val s = _state.value
-        // Checked before the request because the server's rejection is generic.
-        // browser-tts is the one mode with no speaker for the server to post to.
-        if (s.voiceEnabled && s.voiceProvider != "browser-tts" &&
-            !s.voiceWebhookUrl.trim().startsWith("http")
-        ) {
-            _state.value = s.copy(
-                error = "Informe a URL do webhook (http:// ou https://) para Alexa e outros assistentes.",
-            )
+        if (!s.isPremium) {
+            _state.value = s.copy(error = "⭐ Recurso premium: ative o Premium para configurar a Alexa.")
             return
         }
-        _state.value = s.copy(voiceSaving = true)
+        val deviceName = s.voiceDeviceName.trim()
+        val webhookUrl = s.voiceWebhookUrl.trim()
+        if (s.voiceEnabled && s.voiceProvider != "browser-tts" && webhookUrl.isBlank()) {
+            _state.value = s.copy(error = "❌ Informe a URL do Webhook para usar este assistente")
+            return
+        }
+        _state.value = s.copy(
+            voiceSaving = true,
+            voiceSavedEnabled = s.voiceEnabled,
+            voiceSavedProvider = s.voiceProvider,
+            message = "✅ Configuração de voz salva!",
+        )
         viewModelScope.launch {
             val config = VoiceAssistantConfig(
                 enabled = s.voiceEnabled,
                 provider = s.voiceProvider,
-                deviceName = s.voiceDeviceName.trim(),
-                webhookUrl = s.voiceWebhookUrl.trim(),
+                deviceName = deviceName,
+                webhookUrl = webhookUrl,
             )
-            when (val r = repo.setVoiceAssistantConfig(config)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
-                    voiceSaving = false,
-                    voiceEnabled = r.value.enabled,
-                    voiceProvider = r.value.provider,
-                    voiceDeviceName = r.value.deviceName,
-                    voiceWebhookUrl = r.value.webhookUrl,
-                    message = "Assistente de voz salvo.",
-                )
+            repo.setVoiceAssistantConfig(config)
+            _state.value = _state.value.copy(voiceSaving = false)
+        }
+    }
+
+    // ---- Sincronização Online ----
+
+    /** The web's `syncNowBtn`: "🔄 Sincronizando..." then the sync result. */
+    fun syncNow() {
+        _state.value = _state.value.copy(syncing = true, message = "🔄 Sincronizando...")
+        viewModelScope.launch {
+            when (val r = repo.me()) {
+                is ApiResult.Ok -> {
+                    applyUser(r.value, markSynced = true)
+                    // Re-arms every dose from what the server now says.
+                    scheduler.reschedule()
+                    _state.value = _state.value.copy(syncing = false, message = "✅ Dados sincronizados com sucesso!")
+                }
                 is ApiResult.Err -> _state.value = _state.value.copy(
-                    voiceSaving = false,
-                    error = r.message,
+                    syncing = false,
+                    error = "❌ Erro ao sincronizar dados: ${r.message}",
                 )
             }
         }
     }
 
-    /** Speaks one phrase on the Echo Dot so the user can hear it working. */
-    fun testVoiceAssistant() {
-        _state.value = _state.value.copy(voiceTesting = true)
+    // ---- Dados ----
+
+    fun requestExport() {
+        _state.value = _state.value.copy(exporting = true)
         viewModelScope.launch {
-            val result = repo.dispatchVoiceAssistant(
-                message = "Teste do MemorIA: está na hora de tomar o seu remédio.",
-                medicationName = "Teste",
-                scheduleTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
-            )
-            _state.value = when (result) {
-                is ApiResult.Ok -> _state.value.copy(
-                    voiceTesting = false,
-                    message = if (result.value.dispatched) {
-                        "Mensagem enviada ao assistente."
-                    } else {
-                        // browser-tts has no speaker on the server side; saying so
-                        // beats a success message the user will never hear.
-                        "O provedor escolhido fala apenas no navegador, então nada foi enviado ao aparelho."
-                    },
-                )
-                is ApiResult.Err -> _state.value.copy(voiceTesting = false, error = result.message)
+            when (val r = repo.exportData()) {
+                is ApiResult.Ok -> {
+                    _state.value = _state.value.copy(exporting = false)
+                    _pendingExport.value = r.value
+                }
+                is ApiResult.Err -> _state.value = _state.value.copy(exporting = false, error = r.message)
             }
+        }
+    }
+
+    fun writeExportTo(destination: Uri) {
+        val bytes = _pendingExport.value ?: return
+        _pendingExport.value = null
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    app.contentResolver.openOutputStream(destination)?.use { it.write(bytes) }
+                        ?: error("sem acesso de escrita")
+                }.isSuccess
+            }
+            _state.value = if (ok) {
+                _state.value.copy(message = "✅ Dados exportados!")
+            } else {
+                _state.value.copy(error = "Não foi possível gravar o arquivo escolhido.")
+            }
+        }
+    }
+
+    fun discardExport() { _pendingExport.value = null }
+
+    /**
+     * "Apagar tudo" — the web's `storageService.clearAllData()`: wipes what the
+     * device keeps (local records and every setting back to the web defaults)
+     * and nothing on the server; the account and its medications stay. Toast
+     * "🗑️ Todos os dados foram apagados", as on the web.
+     */
+    fun clearLocalData() {
+        viewModelScope.launch {
+            repo.local.saveVitalSigns(emptyList())
+            repo.local.saveWellbeing(emptyList())
+            repo.local.saveSafety(emptyList())
+            repo.local.saveCareContacts(emptyList())
+            repo.local.saveConsultations(emptyList())
+            repo.local.saveEmergencyContacts(emptyList())
+            repo.local.clearMedicationExtras()
+            repo.setSnoozeMinutes(ReminderScheduler.DEFAULT_SNOOZE_MINUTES)
+            repo.setReminderSound(ReminderSound.PADRAO.id)
+            repo.setThemePreset(ThemePreset.PASTEL_AZUL.id)
+            repo.setEmergencyAlertMode("auto")
+            repo.setLowStockAlertsEnabled(true)
+            repo.local.setUiSetting(KEY_REPORTS_VARIANT, null)
+            repo.local.setUiSetting(KEY_LAST_SYNC, null)
+            repo.local.setUiSetting(KEY_PROFILE_PHOTO, null)
+            scheduler.reschedule()
+            loadLocalPreferences()
+            _state.value = _state.value.copy(message = "🗑️ Todos os dados foram apagados")
         }
     }
 
@@ -390,7 +585,28 @@ class SettingsViewModel(
     fun consumeMessage() { _state.value = _state.value.copy(message = null) }
     fun clearError() { _state.value = _state.value.copy(error = null) }
 
-    private companion object {
-        val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$")
+    override fun onCleared() {
+        player?.release()
+        player = null
+    }
+
+    companion object {
+        private const val SAVED = "✅ Configurações salvas"
+        private const val KEY_REPORTS_VARIANT = "reports_guide_variant"
+        private const val KEY_LAST_SYNC = "last_sync_at"
+        /** Shared with the header — keep the key. */
+        private const val KEY_PROFILE_PHOTO = "profile_photo_path"
+
+        /** Same rule as the web's `isValidEmail`. */
+        fun isValidEmail(value: String): Boolean {
+            val normalized = value.trim().lowercase()
+            val at = normalized.indexOf('@')
+            if (at <= 0 || at != normalized.lastIndexOf('@')) return false
+            val domain = normalized.substring(at + 1)
+            return !normalized.contains(' ') &&
+                domain.contains('.') &&
+                !domain.startsWith('.') &&
+                !domain.endsWith('.')
+        }
     }
 }

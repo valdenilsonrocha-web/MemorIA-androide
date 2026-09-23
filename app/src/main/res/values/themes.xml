@@ -1,7 +1,21 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base theme is a Material3 no-action-bar shell; Compose drives the real UI. -->
+    <!--
+      Base theme is a Material no-action-bar shell; Compose drives the real UI.
+      The window starts on the brand blue so the cold start flows straight into
+      the loading screen (the web's `.app-loading-screen`) with no white flash.
+    -->
     <style name="Theme.MemoriaMobile" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/primary</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/primary</item>
+    </style>
+
+    <!--
+      O lembrete em ecrã inteiro: a página escurecida da web (rgba(0,0,0,.8))
+      desde o primeiro frame, sem o azul de arranque por baixo.
+    -->
+    <style name="Theme.MemoriaMobile.Reminder" parent="Theme.MemoriaMobile">
+        <item name="android:windowBackground">@color/reminder_scrim</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 </resources>

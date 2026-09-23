@@ -57,7 +57,7 @@ class MyDoctorsViewModel(
             _state.value = _state.value.copy(
                 loading = false,
                 contacts = repo.local.careContacts(),
-                consultations = repo.local.consultations().sortedBy { it.dateTime },
+                consultations = repo.local.consultations(),
             )
         }
     }
@@ -92,7 +92,7 @@ class MyDoctorsViewModel(
     fun saveContact() {
         val s = _state.value
         if (s.contactName.isBlank() || s.contactInfo.isBlank()) {
-            _state.value = s.copy(error = "Preencha nome e contato.")
+            _state.value = s.copy(error = "❌ Preencha tipo, nome e contato.")
             return
         }
         val contact = CareContact(
@@ -116,7 +116,7 @@ class MyDoctorsViewModel(
                 contactInfo = "",
                 contactNotes = "",
                 editingContactId = null,
-                message = if (s.editingContactId != null) "Contato atualizado." else "Contato salvo.",
+                message = "✅ Contato salvo com sucesso.",
             )
         }
     }
@@ -125,8 +125,32 @@ class MyDoctorsViewModel(
         val updated = _state.value.contacts.filterNot { it.id == contact.id }
         viewModelScope.launch {
             repo.local.saveCareContacts(updated)
-            _state.value = _state.value.copy(contacts = updated, message = "Contato removido.")
+            _state.value = _state.value.copy(
+                contacts = updated,
+                contactType = "medico",
+                contactName = "",
+                contactInfo = "",
+                contactNotes = "",
+                editingContactId = null,
+                message = "🗑️ Contato removido.",
+            )
         }
+    }
+
+    /**
+     * O botão "Agenda": preenche nome e contato com o que o utilizador escolheu
+     * na agenda do telefone (telefone primeiro, e-mail na falta dele).
+     */
+    fun fillFromAgenda(name: String?, info: String?) {
+        val s = _state.value
+        if (name == null && info == null) {
+            _state.value = s.copy(error = "⚠️ Não foi possível acessar a agenda.")
+            return
+        }
+        _state.value = s.copy(
+            contactName = name?.takeIf { it.isNotBlank() } ?: s.contactName,
+            contactInfo = info ?: "",
+        )
     }
 
     // ---- Consultation form ----
@@ -159,7 +183,7 @@ class MyDoctorsViewModel(
     fun saveConsultation() {
         val s = _state.value
         if (s.consultationDateTime.isBlank() || s.consultationProfessional.isBlank()) {
-            _state.value = s.copy(error = "Informe a data/hora e o profissional.")
+            _state.value = s.copy(error = "❌ Preencha data/hora e profissional.")
             return
         }
         val consultation = MedicalConsultation(
@@ -169,13 +193,13 @@ class MyDoctorsViewModel(
             location = s.consultationLocation.trim(),
             notes = s.consultationNotes.trim(),
         )
-        val updated = (
-            if (s.editingConsultationId != null) {
-                s.consultations.map { if (it.id == consultation.id) consultation else it }
-            } else {
-                s.consultations + consultation
-            }
-            ).sortedBy { it.dateTime }
+        // Como na web (`list.unshift`): a consulta nova entra no topo da lista;
+        // a editada fica no mesmo lugar.
+        val updated = if (s.editingConsultationId != null) {
+            s.consultations.map { if (it.id == consultation.id) consultation else it }
+        } else {
+            listOf(consultation) + s.consultations
+        }
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
             pushConsultations(updated)
@@ -186,7 +210,7 @@ class MyDoctorsViewModel(
                 consultationLocation = "",
                 consultationNotes = "",
                 editingConsultationId = null,
-                message = if (s.editingConsultationId != null) "Consulta atualizada." else "Consulta salva.",
+                message = "✅ Consulta salva com sucesso.",
             )
         }
     }
@@ -196,7 +220,15 @@ class MyDoctorsViewModel(
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
             pushConsultations(updated)
-            _state.value = _state.value.copy(consultations = updated, message = "Consulta removida.")
+            _state.value = _state.value.copy(
+                consultations = updated,
+                consultationDateTime = "",
+                consultationProfessional = "",
+                consultationLocation = "",
+                consultationNotes = "",
+                editingConsultationId = null,
+                message = "🗑️ Consulta removida.",
+            )
         }
     }
 

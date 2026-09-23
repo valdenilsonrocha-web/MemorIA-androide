@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Onde a câmara das receitas grava a foto em resolução total antes de a app a
+  ler (FileProvider, autoridade ${applicationId}.fileprovider). Só a cache: a
+  foto é recodificada e enviada, o ficheiro não precisa de sobreviver.
+-->
+<paths>
+    <cache-path name="images" path="images/" />
+</paths>

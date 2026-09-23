@@ -29,7 +29,13 @@ class MoreViewModel(private val repo: MemoriaRepository) : ViewModel() {
      */
     fun load() {
         viewModelScope.launch {
-            val user = (repo.me() as? ApiResult.Ok)?.value ?: return@launch
+            // The "Mais" sheet lives outside the navigation graph, so this model can
+            // outlive a logout; never show one account's admin entry to the next.
+            val user = (repo.me() as? ApiResult.Ok)?.value
+            if (user == null) {
+                _state.value = MoreUiState()
+                return@launch
+            }
             _state.value = MoreUiState(
                 userName = user.name,
                 isAdmin = user.isAdmin,

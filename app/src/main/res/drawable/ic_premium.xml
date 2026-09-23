@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Escudo medico com cruz branca e coroa dourada — o marcador de Premium.
+
+    Convertido a mao de `premium-icon.svg` da versao web
+    (D:\DEV\MemorIA\frontend\public\assets\premium-icon.svg), caminho a caminho
+    e com os mesmos gradientes, para o telemovel e o browser marcarem o Premium
+    com o mesmo simbolo. A web usa-o em 10 sitios; a Mobile usava o generico
+    Icons.Filled.WorkspacePremium do Material.
+
+    Fica vetor em vez de bitmap porque o original aparece entre 32px (inline) e
+    92px (estado vazio) — um PNG obrigaria a varias densidades para o mesmo
+    resultado. A unica coisa que se perde do SVG e a sombra projectada
+    (`<filter>`), que o VectorDrawable nao suporta e que era subtil.
+
+    Os <rect> e <circle> do SVG estao aqui como caminhos, que e a unica
+    primitiva do VectorDrawable.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="768"
+    android:viewportHeight="768">
+
+    <!-- Fundo arredondado (SVG: <rect x=96 y=96 576x576 rx=76>) -->
+    <path android:pathData="M172,96 L596,96 A76,76 0 0 1 672,172 L672,596 A76,76 0 0 1 596,672 L172,672 A76,76 0 0 1 96,596 L96,172 A76,76 0 0 1 172,96 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="672"
+                android:endY="672"
+                android:startX="96"
+                android:startY="96"
+                android:type="linear">
+                <item
+                    android:color="#FAFFFE"
+                    android:offset="0" />
+                <item
+                    android:color="#EAF8F5"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Escudo azul exterior -->
+    <path android:pathData="M384,198L520,238V376C520,469 460,548 384,582C308,548 248,469 248,376V238L384,198Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="544"
+                android:endY="544"
+                android:startX="218"
+                android:startY="216"
+                android:type="linear">
+                <item
+                    android:color="#5E95CC"
+                    android:offset="0" />
+                <item
+                    android:color="#2D6FA8"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Escudo branco intermedio -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M384,230L488,260V373C488,445 443,507 384,536C325,507 280,445 280,373V260L384,230Z" />
+
+    <!-- Escudo menta interior -->
+    <path android:pathData="M384,254L464,278V370C464,425 430,473 384,497C338,473 304,425 304,370V278L384,254Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="498"
+                android:endY="526"
+                android:startX="270"
+                android:startY="258"
+                android:type="linear">
+                <item
+                    android:color="#CFF6E7"
+                    android:offset="0" />
+                <item
+                    android:color="#A8E5D4"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Abas azuis da coroa (esquerda e direita) -->
+    <path android:pathData="M287,218L357,192L371,278H331L287,218Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="544"
+                android:endY="544"
+                android:startX="218"
+                android:startY="216"
+                android:type="linear">
+                <item
+                    android:color="#5E95CC"
+                    android:offset="0" />
+                <item
+                    android:color="#2D6FA8"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M481,218L411,192L397,278H437L481,218Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="544"
+                android:endY="544"
+                android:startX="218"
+                android:startY="216"
+                android:type="linear">
+                <item
+                    android:color="#5E95CC"
+                    android:offset="0" />
+                <item
+                    android:color="#2D6FA8"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Pontas douradas da coroa -->
+    <path android:pathData="M246,312L276,236L364,310L338,342L246,312Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="524"
+                android:endY="390"
+                android:startX="244"
+                android:startY="162"
+                android:type="linear">
+                <item
+                    android:color="#EFD8A2"
+                    android:offset="0" />
+                <item
+                    android:color="#C8A25E"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M522,312L492,236L404,310L430,342L522,312Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="524"
+                android:endY="390"
+                android:startX="244"
+                android:startY="162"
+                android:type="linear">
+                <item
+                    android:color="#EFD8A2"
+                    android:offset="0" />
+                <item
+                    android:color="#C8A25E"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M384,166L420,308H348L384,166Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="524"
+                android:endY="390"
+                android:startX="244"
+                android:startY="162"
+                android:type="linear">
+                <item
+                    android:color="#EFD8A2"
+                    android:offset="0" />
+                <item
+                    android:color="#C8A25E"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Esferas douradas (SVG: <circle r=16>) -->
+    <path android:pathData="M246,224A16,16 0 1 1 278,224A16,16 0 1 1 246,224Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="524"
+                android:endY="390"
+                android:startX="244"
+                android:startY="162"
+                android:type="linear">
+                <item
+                    android:color="#EFD8A2"
+                    android:offset="0" />
+                <item
+                    android:color="#C8A25E"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M490,224A16,16 0 1 1 522,224A16,16 0 1 1 490,224Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="524"
+                android:endY="390"
+                android:startX="244"
+                android:startY="162"
+                android:type="linear">
+                <item
+                    android:color="#EFD8A2"
+                    android:offset="0" />
+                <item
+                    android:color="#C8A25E"
+                    android:offset="1" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Cruz medica branca -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M402,300H366C357.163,300 350,307.163 350,316V350H316C307.163,350 300,357.163 300,366V402C300,410.837 307.163,418 316,418H350V452C350,460.837 357.163,468 366,468H402C410.837,468 418,460.837 418,452V418H452C460.837,418 468,410.837 468,402V366C468,357.163 460.837,350 452,350H418V316C418,307.163 410.837,300 402,300Z" />
+</vector>

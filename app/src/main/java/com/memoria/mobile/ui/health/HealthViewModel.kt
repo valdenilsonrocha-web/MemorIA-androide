@@ -3,7 +3,6 @@ package com.memoria.mobile.ui.health
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.MemoriaRepository
-import com.memoria.mobile.data.local.CareContact
 import com.memoria.mobile.data.local.SafetyRecord
 import com.memoria.mobile.data.local.VitalSignsRecord
 import com.memoria.mobile.data.local.WellbeingRecord
@@ -17,28 +16,23 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-
-/** The three panels of the web `healthPage`. */
-enum class HealthSection(val label: String) {
-    VITAL_SIGNS("Sinais Vitais"),
-    WELLBEING("Bem-estar"),
-    SAFETY("Segurança"),
-}
+import java.time.temporal.ChronoUnit
 
 /** A reading classified against its reference range, for the live badge. */
 data class HealthStatus(val text: String, val level: Level) {
+    /** `hm-status-ok` / `hm-status-warn` / `hm-status-danger` da web. */
     enum class Level { NORMAL, ATTENTION, ALERT }
 }
 
 data class HealthUiState(
-    val section: HealthSection = HealthSection.VITAL_SIGNS,
     val message: String? = null,
     val error: String? = null,
     val vitalSigns: List<VitalSignsRecord> = emptyList(),
     val wellbeing: List<WellbeingRecord> = emptyList(),
     val safety: List<SafetyRecord> = emptyList(),
-    val doctors: List<CareContact> = emptyList(),
     // Vital signs form
+    /** `yyyy-MM-dd'T'HH:mm`, como o `datetime-local` "Data da atualização". */
+    val measurementAt: String = nowLocalInput(),
     val systolic: String = "",
     val diastolic: String = "",
     val heartRate: String = "",
@@ -60,16 +54,24 @@ data class HealthUiState(
     val height: String = "",
     val sex: String = "auto",
     val careLevel: Int? = null,
+    /**
+     * O sexo do "cadastro" — na web é o `profile.gender`, que a própria página
+     * Saúde grava ao salvar a Segurança. Aqui vem do último registo com sexo.
+     */
+    val profileSex: String = "not_informed",
 ) {
     /** IMC = kg / m², recomputed on every keystroke like the web page does. */
     val bmi: Double?
         get() {
-            val w = weight.replace(',', '.').toDoubleOrNull() ?: return null
-            val h = height.replace(',', '.').toDoubleOrNull() ?: return null
+            val w = weight.toDoubleOrNullBr() ?: return null
+            val h = height.toDoubleOrNullBr() ?: return null
             if (w <= 0 || h <= 0) return null
             val meters = h / 100.0
             return w / (meters * meters)
         }
+
+    /** `resolveHealthSexValue()`: "Usar cadastro" cai no sexo do cadastro. */
+    val resolvedSex: String get() = if (sex == "auto") profileSex else sex
 }
 
 class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -77,27 +79,40 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     private val _state = MutableStateFlow(HealthUiState())
     val state: StateFlow<HealthUiState> = _state.asStateFlow()
 
+    private var seeded = false
+
     fun load() {
         viewModelScope.launch {
             val safety = repo.local.safety()
-            _state.value = _state.value.copy(
-                vitalSigns = repo.local.vitalSigns(),
-                wellbeing = repo.local.wellbeing(),
-                safety = safety,
-                doctors = repo.local.careContacts().filter { it.type == "medico" },
-                // Height and sex barely change; seeding them from the last record
-                // spares the user retyping them to get an IMC.
-                height = _state.value.height.ifBlank { safety.firstOrNull()?.height?.let(::trimNumber).orEmpty() },
-                sex = safety.firstOrNull()?.sex ?: _state.value.sex,
-                careLevel = _state.value.careLevel ?: safety.firstOrNull()?.careLevel,
+            val profileSex = normalizeHealthSex(repo.local.profileGender())
+                .takeIf { it != "not_informed" && it != "auto" }
+                ?: profileSexOf(safety)
+            val profileHeight = repo.local.profileHeight()
+                ?: safety.firstOrNull { it.height != null }?.height?.let(::jsNumber)
+            val s = _state.value
+            _state.value = s.copy(
+                vitalSigns = repo.local.vitalSigns().newestFirst(),
+                wellbeing = repo.local.wellbeing().sortedByDescending { instantOf(it.date)?.toEpochMilli() ?: 0L },
+                safety = safety.sortedByDescending { instantOf(it.date)?.toEpochMilli() ?: 0L },
+                profileSex = profileSex,
             )
+            // Como na web, a altura (`profile.height`), o sexo (`profile.gender`)
+            // e a escala de cuidados só são pré-preenchidos na primeira visita —
+            // depois é o formulário que manda.
+            if (!seeded) {
+                seeded = true
+                _state.value = _state.value.copy(
+                    height = s.height.ifBlank { profileHeight.orEmpty() },
+                    sex = if (profileSex != "not_informed") profileSex else "auto",
+                    careLevel = s.careLevel ?: safety.firstOrNull { it.careLevel != null }?.careLevel,
+                )
+            }
         }
     }
 
-    fun selectSection(section: HealthSection) { _state.value = _state.value.copy(section = section) }
-
     // ---- Vital signs ----
 
+    fun onMeasurementAt(v: String) { _state.value = _state.value.copy(measurementAt = v) }
     fun onSystolic(v: String) { _state.value = _state.value.copy(systolic = v) }
     fun onDiastolic(v: String) { _state.value = _state.value.copy(diastolic = v) }
     fun onHeartRate(v: String) { _state.value = _state.value.copy(heartRate = v) }
@@ -109,33 +124,35 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
 
     fun saveVitalSigns() {
         val s = _state.value
+        // A data escolhida em "Data da atualização"; em branco vale "agora".
+        val date = if (s.measurementAt.isBlank()) {
+            nowIso()
+        } else {
+            isoFromLocalOrNull(s.measurementAt) ?: run {
+                _state.value = s.copy(error = "❌ Informe uma data válida para salvar os sinais vitais.")
+                return
+            }
+        }
         val record = VitalSignsRecord(
-            date = nowIso(),
-            systolic = s.systolic.toIntOrNull(),
-            diastolic = s.diastolic.toIntOrNull(),
-            heartRate = s.heartRate.toIntOrNull(),
+            date = date,
+            systolic = s.systolic.toIntOrNullBr(),
+            diastolic = s.diastolic.toIntOrNullBr(),
+            heartRate = s.heartRate.toIntOrNullBr(),
             spo2 = s.spo2.toDoubleOrNullBr(),
             glucose = s.glucose.toDoubleOrNullBr(),
-            glucoseContext = s.glucoseContext,
+            glucoseContext = s.glucoseContext.ifBlank { "fasting" },
             hba1c = s.hba1c.toDoubleOrNullBr(),
             temperature = s.temperature.toDoubleOrNullBr(),
         )
-        val hasValue = listOfNotNull(
-            record.systolic, record.diastolic, record.heartRate,
-        ).isNotEmpty() || listOfNotNull(
-            record.spo2, record.glucose, record.hba1c, record.temperature,
-        ).isNotEmpty()
-        if (!hasValue) {
-            _state.value = s.copy(error = "Preencha ao menos uma medição.")
-            return
-        }
-        val updated = listOf(record) + s.vitalSigns
+        // Uma medição antiga lançada hoje vai para o seu lugar na cronologia.
+        val updated = (listOf(record) + s.vitalSigns).newestFirst().take(VITAL_SIGNS_MAX_RECORDS)
         viewModelScope.launch {
             repo.local.saveVitalSigns(updated)
             _state.value = _state.value.copy(
-                vitalSigns = updated.take(MAX_RECORDS),
+                vitalSigns = updated,
+                measurementAt = nowLocalInput(),
                 systolic = "", diastolic = "", heartRate = "", spo2 = "",
-                glucose = "", hba1c = "", temperature = "",
+                glucose = "", glucoseContext = "fasting", hba1c = "", temperature = "",
                 message = "Sinais vitais salvos!",
             )
             pushToServer()
@@ -160,15 +177,15 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
             sleepHours = s.sleepHours.toDoubleOrNullBr(),
             hydration = s.hydration.toDoubleOrNullBr(),
             mood = s.mood,
-            moodNote = s.moodNote.trim(),
+            moodNote = s.moodNote,
             activityType = s.activityType,
-            activityDuration = s.activityDuration.toIntOrNull(),
+            activityDuration = s.activityDuration.toIntOrNullBr(),
         )
-        val updated = listOf(record) + s.wellbeing
+        val updated = (listOf(record) + s.wellbeing).take(MAX_RECORDS)
         viewModelScope.launch {
             repo.local.saveWellbeing(updated)
             _state.value = _state.value.copy(
-                wellbeing = updated.take(MAX_RECORDS),
+                wellbeing = updated,
                 sleepQuality = null, sleepHours = "", hydration = "",
                 mood = null, moodNote = "", activityType = "", activityDuration = "",
                 message = "Dados de bem-estar salvos!",
@@ -187,22 +204,29 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val s = _state.value
         val record = SafetyRecord(
             date = nowIso(),
-            weight = s.weight.toDoubleOrNullBr(),
-            height = s.height.toDoubleOrNullBr(),
-            sex = s.sex,
-            bmi = s.bmi,
+            weight = s.weight.toDoubleOrNullBr()?.takeIf { it != 0.0 },
+            height = s.height.toDoubleOrNullBr()?.takeIf { it != 0.0 },
+            sex = s.resolvedSex,
+            // A web grava o valor do campo IMC, que já vem com uma casa decimal.
+            bmi = s.bmi?.let { Math.round(it * 10.0) / 10.0 },
             careLevel = s.careLevel,
         )
-        if (record.weight == null && record.height == null && record.careLevel == null) {
-            _state.value = s.copy(error = "Preencha peso, altura ou a escala de cuidados.")
-            return
-        }
-        val updated = listOf(record) + s.safety
+        val updated = (listOf(record) + s.safety).take(MAX_RECORDS)
         viewModelScope.launch {
             repo.local.saveSafety(updated)
+            // "Save weight to profile": peso, altura e sexo vão para o `profile`
+            // local, que a página Perfil mostra e que "Usar cadastro" lê.
+            record.weight?.let { repo.local.setProfileWeight(jsNumber(it)) }
+            record.height?.let { repo.local.setProfileHeight(jsNumber(it)) }
+            if (record.sex != "not_informed") repo.local.setProfileGender(record.sex)
+            // `sfForm.reset()`: o formulário inteiro volta ao estado inicial.
             _state.value = _state.value.copy(
-                safety = updated.take(MAX_RECORDS),
+                safety = updated,
+                profileSex = if (record.sex in setOf("female", "male", "other")) record.sex else _state.value.profileSex,
                 weight = "",
+                height = "",
+                sex = "auto",
+                careLevel = null,
                 message = "Dados de segurança salvos!",
             )
         }
@@ -247,99 +271,117 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     }
 
     /** `datetime-local` has no zone; the server wants a real instant. */
-    private fun isoFromLocal(raw: String): String = runCatching {
+    private fun isoFromLocal(raw: String): String = isoFromLocalOrNull(raw) ?: raw
+
+    private fun isoFromLocalOrNull(raw: String): String? = runCatching {
         LocalDateTime.parse(raw).atZone(ZoneId.systemDefault()).toOffsetDateTime()
             .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-    }.getOrDefault(raw)
+    }.getOrNull()
 
     private fun nowIso(): String =
         OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
 
+    /**
+     * Recurso para instalações anteriores ao `profile_gender`: o sexo que o
+     * último registo de Segurança gravou (é o mesmo valor que a web põe em
+     * `profile.gender` ao salvar).
+     */
+    private fun profileSexOf(safety: List<SafetyRecord>): String =
+        safety.firstOrNull { it.sex in setOf("female", "male", "other") }?.sex ?: "not_informed"
+
     private companion object {
+        /** Bem-estar e Segurança continuam a guardar 50, como na web. */
         const val MAX_RECORDS = 50
     }
 }
 
+/** "Agora" no formato do `datetime-local` — `toDateTimeLocalValue()` da web. */
+private fun nowLocalInput(): String =
+    LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        .take(16)
+
+/** `normalizeHealthSexValue()` do `app.js`. */
+fun normalizeHealthSex(value: String?): String = when (value.orEmpty().trim().lowercase()) {
+    "male", "masculino", "m" -> "male"
+    "female", "feminino", "f" -> "female"
+    "other", "outro", "nao_binario", "não_binário", "non-binary" -> "other"
+    "auto" -> "auto"
+    else -> "not_informed"
+}
+
 /** Accepts both `5.7` and `5,7` — Brazilian keyboards produce the comma. */
-private fun String.toDoubleOrNullBr(): Double? = trim().replace(',', '.').toDoubleOrNull()
+internal fun String.toDoubleOrNullBr(): Double? = trim().replace(',', '.').toDoubleOrNull()
 
-private fun trimNumber(value: Double): String =
-    if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
+/** `Number(fd.get(...))` aceita "72.0"; aqui um inteiro com vírgula também vale. */
+private fun String.toIntOrNullBr(): Int? = toDoubleOrNullBr()?.let { Math.round(it).toInt() }
 
-// ---- Reference ranges (mirrors the badge logic in app.js) -------------------
+// ---- Faixas de referência (as mesmas de `updateBPStatus`/`updateSingleStatus`) ----
 
-fun bloodPressureStatus(systolic: Int?, diastolic: Int?): HealthStatus? {
-    if (systolic == null || diastolic == null) return null
+fun bloodPressureStatus(systolic: Double?, diastolic: Double?): HealthStatus? {
+    if (systolic == null || diastolic == null || systolic == 0.0 || diastolic == 0.0) return null
     return when {
-        systolic >= 180 || diastolic >= 120 ->
-            HealthStatus("Crise hipertensiva — procure ajuda", HealthStatus.Level.ALERT)
-        systolic >= 140 || diastolic >= 90 -> HealthStatus("Hipertensão", HealthStatus.Level.ALERT)
-        systolic >= 130 || diastolic >= 85 -> HealthStatus("Limítrofe", HealthStatus.Level.ATTENTION)
-        systolic < 90 || diastolic < 60 -> HealthStatus("Pressão baixa", HealthStatus.Level.ATTENTION)
+        systolic < 90 || diastolic < 60 -> HealthStatus("Hipotensão", HealthStatus.Level.ATTENTION)
+        systolic < 120 && diastolic < 80 -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        systolic < 130 && diastolic < 80 -> HealthStatus("Elevada", HealthStatus.Level.ATTENTION)
+        systolic < 140 || diastolic < 90 -> HealthStatus("Hipertensão estágio 1", HealthStatus.Level.ATTENTION)
+        else -> HealthStatus("Hipertensão estágio 2", HealthStatus.Level.ALERT)
+    }
+}
+
+fun heartRateStatus(value: Double?): HealthStatus? = value?.takeIf { it != 0.0 }?.let {
+    when {
+        it <= 60 -> HealthStatus("Bradicardia", HealthStatus.Level.ATTENTION)
+        it <= 100 -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        else -> HealthStatus("Taquicardia", HealthStatus.Level.ALERT)
+    }
+}
+
+fun spo2Status(value: Double?): HealthStatus? = value?.takeIf { it != 0.0 }?.let {
+    when {
+        it <= 94 -> HealthStatus("Baixa", HealthStatus.Level.ALERT)
+        it <= 95 -> HealthStatus("Atenção", HealthStatus.Level.ATTENTION)
         else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
     }
 }
 
-fun heartRateStatus(value: Int?): HealthStatus? = value?.let {
+/** A web não distingue o contexto (jejum/pós-refeição) na classificação. */
+fun glucoseStatus(value: Double?): HealthStatus? = value?.takeIf { it != 0.0 }?.let {
     when {
-        it < 50 -> HealthStatus("Bradicardia", HealthStatus.Level.ATTENTION)
-        it > 100 -> HealthStatus("Taquicardia", HealthStatus.Level.ATTENTION)
-        else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 70 -> HealthStatus("Hipoglicemia", HealthStatus.Level.ALERT)
+        it <= 100 -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 126 -> HealthStatus("Elevada", HealthStatus.Level.ATTENTION)
+        else -> HealthStatus("Alta", HealthStatus.Level.ALERT)
     }
 }
 
-fun spo2Status(value: Double?): HealthStatus? = value?.let {
+fun hba1cStatus(value: Double?): HealthStatus? = value?.takeIf { it != 0.0 }?.let {
     when {
-        it < 90 -> HealthStatus("Baixa — procure ajuda", HealthStatus.Level.ALERT)
-        it < 95 -> HealthStatus("Atenção", HealthStatus.Level.ATTENTION)
-        else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 5.7 -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 6.4 -> HealthStatus("Pré-diabetes", HealthStatus.Level.ATTENTION)
+        else -> HealthStatus("Diabetes", HealthStatus.Level.ALERT)
     }
 }
 
-fun glucoseStatus(value: Double?, context: String): HealthStatus? = value?.let {
-    // Fasting and post-meal have different cut-offs; "random" uses the wider one.
-    val (attention, alert) = when (context) {
-        "fasting" -> 100.0 to 126.0
-        "postmeal" -> 140.0 to 200.0
-        else -> 140.0 to 200.0
-    }
+fun temperatureStatus(value: Double?): HealthStatus? = value?.takeIf { it != 0.0 }?.let {
     when {
-        it < 70 -> HealthStatus("Hipoglicemia", HealthStatus.Level.ALERT)
-        it >= alert -> HealthStatus("Alta", HealthStatus.Level.ALERT)
-        it >= attention -> HealthStatus("Limítrofe", HealthStatus.Level.ATTENTION)
-        else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 36.0 -> HealthStatus("Hipotermia", HealthStatus.Level.ALERT)
+        it <= 37.5 -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+        it <= 38.3 -> HealthStatus("Subfebril", HealthStatus.Level.ATTENTION)
+        else -> HealthStatus("Febre", HealthStatus.Level.ALERT)
     }
 }
 
-fun hba1cStatus(value: Double?): HealthStatus? = value?.let {
-    when {
-        it >= 6.5 -> HealthStatus("Faixa de diabetes", HealthStatus.Level.ALERT)
-        it >= 5.7 -> HealthStatus("Pré-diabetes", HealthStatus.Level.ATTENTION)
-        else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
+/** `calculateBMI()` + `getBmiThresholdsBySex()`: a mulher tem cortes mais baixos. */
+fun bmiStatus(bmi: Double?, sex: String): HealthStatus? = bmi?.let {
+    val (underweight, overweight, obesity) = if (sex == "female") {
+        Triple(18.0, 24.0, 29.0)
+    } else {
+        Triple(18.5, 25.0, 30.0)
     }
-}
-
-fun temperatureStatus(value: Double?): HealthStatus? = value?.let {
     when {
-        it >= 39.0 -> HealthStatus("Febre alta", HealthStatus.Level.ALERT)
-        it >= 37.8 -> HealthStatus("Febre", HealthStatus.Level.ATTENTION)
-        it < 35.0 -> HealthStatus("Hipotermia", HealthStatus.Level.ALERT)
-        else -> HealthStatus("Normal", HealthStatus.Level.NORMAL)
-    }
-}
-
-fun hydrationStatus(litres: Double?): HealthStatus? = litres?.let {
-    when {
-        it < 1.5 -> HealthStatus("Abaixo do recomendado", HealthStatus.Level.ATTENTION)
-        else -> HealthStatus("Boa hidratação", HealthStatus.Level.NORMAL)
-    }
-}
-
-fun bmiStatus(bmi: Double?): HealthStatus? = bmi?.let {
-    when {
-        it < 18.5 -> HealthStatus("Abaixo do peso", HealthStatus.Level.ATTENTION)
-        it < 25 -> HealthStatus("Peso adequado", HealthStatus.Level.NORMAL)
-        it < 30 -> HealthStatus("Sobrepeso", HealthStatus.Level.ATTENTION)
+        it < underweight -> HealthStatus("Abaixo do peso", HealthStatus.Level.ATTENTION)
+        it < overweight -> HealthStatus("Peso normal", HealthStatus.Level.NORMAL)
+        it < obesity -> HealthStatus("Sobrepeso", HealthStatus.Level.ATTENTION)
         else -> HealthStatus("Obesidade", HealthStatus.Level.ALERT)
     }
 }

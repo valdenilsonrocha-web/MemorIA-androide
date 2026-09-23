@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
 import com.memoria.mobile.data.local.MedicationExtras
+import com.memoria.mobile.data.local.MedicationLook
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.Medication
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,7 @@ data class MedicationDetailsUiState(
     val history: List<HistoryEntry> = emptyList(),
     /** Phone-side fields the backend has no column for; null when none were filled. */
     val extras: MedicationExtras? = null,
+    val look: MedicationLook? = null,
     val deleted: Boolean = false,
 ) {
     val total: Int get() = history.size
@@ -48,7 +50,7 @@ class MedicationDetailsViewModel(
                     if (med == null) {
                         _state.value = _state.value.copy(
                             loading = false,
-                            error = "Medicamento não encontrado.",
+                            error = "❌ Medicamento não encontrado",
                         )
                         return@launch
                     }
@@ -60,6 +62,7 @@ class MedicationDetailsViewModel(
                         medication = med,
                         history = history,
                         extras = repo.local.medicationExtrasFor(medicationId),
+                        look = repo.local.medicationLookFor(medicationId),
                     )
                 }
                 is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
@@ -70,7 +73,11 @@ class MedicationDetailsViewModel(
     fun delete() {
         viewModelScope.launch {
             when (val r = repo.deleteMedication(medicationId)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(deleted = true)
+                is ApiResult.Ok -> {
+                    repo.local.deleteMedicationLook(medicationId)
+                    repo.local.deleteMedicationExtras(medicationId)
+                    _state.value = _state.value.copy(deleted = true)
+                }
                 is ApiResult.Err -> _state.value = _state.value.copy(error = r.message)
             }
         }

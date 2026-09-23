@@ -4,7 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.Alignment
+import com.memoria.mobile.ui.common.MemoriaToastHost
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,7 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.reminders.MemoriaNotifications
-import com.memoria.mobile.ui.common.LoadingBox
+import com.memoria.mobile.ui.auth.AppLoadingScreen
 import com.memoria.mobile.ui.common.repository
 import com.memoria.mobile.ui.nav.MemoriaNav
 import com.memoria.mobile.ui.theme.MemoriaTheme
@@ -32,9 +38,19 @@ class MainActivity : ComponentActivity() {
             // Settings repaints the whole app immediately, bottom bar included.
             val preset by (application as MemoriaApp).graph.repository.themePresetFlow
                 .collectAsStateWithLifecycle(initialValue = null)
-            MemoriaTheme(themePreset = preset) {
+            // The web has no dark mode — the same light page whatever the phone's
+            // system setting — so the clone stays light too.
+            MemoriaTheme(darkTheme = false, themePreset = preset) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    AppEntry()
+                    Box(Modifier.fillMaxSize()) {
+                        AppEntry()
+                        // `#toastContainer`: above every page, the header included.
+                        MemoriaToastHost(
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .windowInsetsPadding(WindowInsets.navigationBars),
+                        )
+                    }
                 }
             }
         }
@@ -67,7 +83,8 @@ private fun AppEntry() {
     }
 
     if (!ready) {
-        LoadingBox()
+        // The web's `.app-loading-screen`: brand gradient + floating logo.
+        AppLoadingScreen()
     } else {
         MemoriaNav(startLoggedIn = loggedIn)
     }

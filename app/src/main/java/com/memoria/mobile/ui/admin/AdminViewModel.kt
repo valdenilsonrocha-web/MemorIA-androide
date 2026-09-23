@@ -32,11 +32,20 @@ class AdminViewModel(private val repo: MemoriaRepository) : ViewModel() {
     }
 }
 
-/** Gender codes the backend stores, mapped to their Portuguese labels. */
+/** Gender codes the backend stores, mapped to the web's labels (`N/I` included). */
 fun genderLabel(code: String?): String = when (code) {
     "female" -> "Feminino"
     "male" -> "Masculino"
     "other" -> "Outro"
-    "not_informed", null, "" -> "Não informado"
+    "not_informed", null, "" -> "N/I"
     else -> code
+}
+
+/** The web's recent-signups line maps only known codes and leaves the rest blank. */
+fun genderLabelOrBlank(code: String?): String = when (code) {
+    "female" -> "Feminino"
+    "male" -> "Masculino"
+    "other" -> "Outro"
+    "not_informed" -> "N/I"
+    else -> ""
 }

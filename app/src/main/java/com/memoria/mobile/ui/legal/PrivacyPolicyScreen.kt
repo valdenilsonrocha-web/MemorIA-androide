@@ -1,22 +1,25 @@
 package com.memoria.mobile.ui.legal
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -27,10 +30,13 @@ import com.memoria.mobile.ui.common.BackTopBar
 /** Contact for privacy matters, as published in the web policy. */
 const val PRIVACY_CONTACT_EMAIL = "contato@brasmaster.com.br"
 
+/** Title of the web `lgpdPolicyModal`. */
+const val LGPD_POLICY_TITLE = "Política de Privacidade e LGPD"
+
 /**
  * The clauses, in the order and wording the web modal uses. Kept as data so the
- * screen and any future consent sheet render the same text — a policy that says
- * two different things in two places is worse than one that says nothing.
+ * screen and the Settings dialog render the same text — a policy that says two
+ * different things in two places is worse than one that says nothing.
  */
 private val CLAUSES: List<Pair<String, String>> = listOf(
     "Controlador de dados" to "MemorIA.",
@@ -50,68 +56,67 @@ private val CLAUSES: List<Pair<String, String>> = listOf(
         "solicitação de exclusão de dados.",
     "Retenção" to
         "os dados permanecem enquanto a conta estiver ativa ou até solicitação de exclusão.",
-    "Contato de privacidade" to PRIVACY_CONTACT_EMAIL,
+    "Contato de privacidade" to "$PRIVACY_CONTACT_EMAIL.",
 )
 
+@Composable
+private fun PolicyClauses() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CLAUSES.forEach { (title, body) ->
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("$title: ") }
+                    append(body)
+                },
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+}
+
 /**
- * "Política de Privacidade e LGPD" — the web `lgpdPolicyModal`.
+ * "Política de Privacidade e LGPD" — the web `lgpdPolicyModal`, as a full screen.
  *
- * Reachable from the sign-up form as well as from Settings, because a consent
- * box the user cannot read before ticking is not informed consent.
+ * Reachable from the sign-up form as well as from the Privacy screen, because a
+ * consent box the user cannot read before ticking is not informed consent.
  */
 @Composable
 fun PrivacyPolicyScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-
-    Scaffold(topBar = { BackTopBar("Política de Privacidade", onBack) }) { inner ->
+    Scaffold(topBar = { BackTopBar(LGPD_POLICY_TITLE, onBack) }) { inner ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(inner)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                "Como o MemorIA trata os seus dados, nos termos da Lei Geral de Proteção de " +
-                    "Dados (Lei 13.709/2018).",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            CLAUSES.forEach { (title, body) ->
-                Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("$title: ") }
-                        append(body)
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+            PolicyClauses()
+            Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                Text("Fechar")
             }
-
-            OutlinedButton(
-                onClick = {
-                    runCatching {
-                        context.startActivity(
-                            Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$PRIVACY_CONTACT_EMAIL"))
-                                .putExtra(Intent.EXTRA_SUBJECT, "MemorIA — privacidade e LGPD"),
-                        )
-                    }.onFailure {
-                        if (it !is ActivityNotFoundException) throw it
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Falar com o encarregado de dados")
-            }
-
-            Text(
-                "Você pode exercer os seus direitos diretamente no app, em Mais > Privacidade " +
-                    "e dados: exportar tudo o que guardamos, revogar o consentimento ou apagar " +
-                    "a conta.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
+}
+
+/** The same modal, opened in place by Settings' "Ver Política de Privacidade". */
+@Composable
+fun LgpdPolicyDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Description, contentDescription = null)
+                Text("  $LGPD_POLICY_TITLE")
+            }
+        },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                PolicyClauses()
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) { Text("Fechar") }
+        },
+    )
 }

@@ -44,6 +44,10 @@ data class RegisterRequest(
     val email: String? = null,
     val phone: String? = null,
     val lgpdConsent: Boolean = true,
+    /** `registerSusCard` da web — só dígitos, até 15. */
+    val susCard: String? = null,
+    /** `registerGender` da web: not_informed | female | male | other. */
+    val gender: String? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -496,4 +500,14 @@ data class VoiceAssistantDispatchData(
     val dispatched: Boolean = false,
     /** "browser-tts" when the server only prepared the phrase instead of posting it. */
     val mode: String? = null,
+)
+
+// ---- WhatsApp (web `apiService.sendWhatsAppMessage`) ---------------------
+
+/** `POST /api/integrations/whatsapp/send` — `{ to, message, metadata }`. */
+@JsonClass(generateAdapter = true)
+data class WhatsAppSendRequest(
+    val to: String,
+    val message: String,
+    val metadata: Map<String, String> = emptyMap(),
 )

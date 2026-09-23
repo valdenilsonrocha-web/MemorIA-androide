@@ -93,6 +93,12 @@ interface ApiService {
         @Body body: VoiceAssistantDispatchRequest,
     ): Response<Envelope<VoiceAssistantDispatchData>>
 
+    /** Web `apiService.sendWhatsAppMessage` (contact "WhatsApp" button). */
+    @POST("integrations/whatsapp/send")
+    suspend fun sendWhatsAppMessage(
+        @Body body: WhatsAppSendRequest,
+    ): Response<SimpleResponse>
+
     // Payments
     @GET("payments/config")
     suspend fun paymentConfig(): Response<Envelope<PaymentConfig>>

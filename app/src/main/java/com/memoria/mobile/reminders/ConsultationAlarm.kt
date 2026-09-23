@@ -35,6 +35,9 @@ data class ConsultationAlarm(
     enum class Lead(val hoursBefore: Long, val phrase: String) {
         DAY_BEFORE(24, "amanhã"),
         HOUR_BEFORE(1, "em cerca de 1 hora"),
+
+        /** What the web does (`checkConsultationSchedules()`): at the appointment minute. */
+        AT_TIME(0, "agora"),
     }
 
     private val appointment: LocalDateTime?

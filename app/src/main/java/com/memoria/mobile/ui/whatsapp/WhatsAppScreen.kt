@@ -70,7 +70,7 @@ fun WhatsAppScreen(contentPadding: PaddingValues, onBack: () -> Unit) {
 
     Scaffold(
         topBar = { BackTopBar("Avisos por WhatsApp", onBack) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { com.memoria.mobile.ui.common.MemoriaSnackbar(it) } },
     ) { inner ->
         if (state.loading) {
             LoadingBox(Modifier.padding(inner))

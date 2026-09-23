@@ -249,6 +249,8 @@ class MemoriaRepository(
         email: String?,
         phone: String?,
         lgpdConsent: Boolean,
+        susCard: String? = null,
+        gender: String? = null,
     ): ApiResult<User> {
         val result = authCall {
             api().register(
@@ -259,6 +261,8 @@ class MemoriaRepository(
                     email = email?.trim()?.ifBlank { null },
                     phone = phone?.let { digitsOnly(it) }?.ifBlank { null },
                     lgpdConsent = lgpdConsent,
+                    susCard = susCard?.let { digitsOnly(it) }?.ifBlank { null },
+                    gender = gender?.ifBlank { null } ?: "not_informed",
                 )
             )
         }
@@ -366,6 +370,22 @@ class MemoriaRepository(
             )
         )
         envelopeValue(r) { it }
+    }
+
+    /**
+     * Web `apiService.sendWhatsAppMessage(to, message, metadata)`. Ok(success)
+     * when the server answered 2xx; Err when it refused (non-2xx) or the network
+     * failed — the two cases the web tells apart with different toasts.
+     */
+    suspend fun sendWhatsAppMessage(
+        to: String,
+        message: String,
+        metadata: Map<String, String> = emptyMap(),
+    ): ApiResult<Boolean> = call {
+        val r = api().sendWhatsAppMessage(
+            com.memoria.mobile.data.remote.WhatsAppSendRequest(to = to, message = message, metadata = metadata)
+        )
+        if (r.isSuccessful) ApiResult.Ok(r.body()?.success == true) else ApiResult.Err(serverError(r))
     }
 
     suspend fun me(): ApiResult<User> = call {
@@ -671,7 +691,8 @@ class MemoriaRepository(
         const val KEY_EMERGENCY_MODE = "emergency_alert_mode"
         const val KEY_THEME_PRESET = "theme_preset"
         const val DEFAULT_SNOOZE = 10
-        const val DEFAULT_SOUND = "default"
+        /** The web's `settings.notificationSound || 'system'`. */
+        const val DEFAULT_SOUND = "system"
 
         /** Same default the web app applies (`settings.themePreset`). */
         const val DEFAULT_THEME_PRESET = "pastel-azul"

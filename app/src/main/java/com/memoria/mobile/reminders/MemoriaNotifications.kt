@@ -30,8 +30,18 @@ import com.memoria.mobile.R
  */
 object MemoriaNotifications {
 
-    const val CHANNEL_CONSULTATIONS = "memoria_consultas_v1"
+    const val CHANNEL_CONSULTATIONS = "memoria_consultas_v2"
     const val CHANNEL_STOCK = "memoria_estoque_v1"
+
+    private val LEGACY_CHANNELS = listOf(
+        "memoria_doses_v1",
+        "memoria_doses_suave_v1",
+        "memoria_doses_alto_v1",
+        "memoria_consultas_v1",
+    )
+
+    /** `showNotification()`'s default `vibrate: [400, 200, 400, 200, 400]`. */
+    private val WEB_NOTIFICATION_VIBRATION = longArrayOf(0, 400, 200, 400, 200, 400)
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -43,15 +53,20 @@ object MemoriaNotifications {
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
 
-        // One channel per sound profile: a channel's sound and importance cannot
-        // be changed after creation, so "Som do lembrete" switches channels
-        // rather than editing one. All three are created up front so the Android
-        // notification settings show every option the app can use.
+        // Channels of earlier builds, whose sound can no longer be changed:
+        // removed so Android's settings do not list options that do nothing.
+        LEGACY_CHANNELS.forEach { runCatching { manager.deleteNotificationChannel(it) } }
+
+        // One channel per sound option: a channel's sound and importance cannot
+        // be changed after creation, so "Som de Notificação" switches channels
+        // rather than editing one. All are created up front so the Android
+        // notification settings show every option the app can use. Name and
+        // description are the web's native channel ("Lembretes de medicamentos").
         ReminderSound.entries.forEach { profile ->
             manager.createNotificationChannel(
                 NotificationChannel(
                     profile.channelId,
-                    "Lembretes de medicamento — ${profile.label}",
+                    "Lembretes de medicamentos — ${profile.label}",
                     profile.importance,
                 ).apply {
                     description = profile.description
@@ -64,13 +79,17 @@ object MemoriaNotifications {
             )
         }
 
+        // The web posts consultation reminders on the same max-importance,
+        // vibrating channel as the doses.
         val consultations = NotificationChannel(
             CHANNEL_CONSULTATIONS,
             "Consultas médicas",
-            NotificationManager.IMPORTANCE_DEFAULT,
+            NotificationManager.IMPORTANCE_HIGH,
         ).apply {
             description = "Avisa antes de uma consulta marcada."
             setSound(sound, audio)
+            enableVibration(true)
+            vibrationPattern = WEB_NOTIFICATION_VIBRATION
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
 
@@ -107,7 +126,7 @@ object MemoriaNotifications {
     fun buildDoseNotification(
         context: Context,
         dose: DoseAlarm,
-        sound: ReminderSound = ReminderSound.PADRAO,
+        sound: ReminderSound = ReminderSound.SYSTEM,
     ): Notification {
         val open = PendingIntent.getActivity(
             context,
@@ -117,17 +136,21 @@ object MemoriaNotifications {
             pendingFlags(),
         )
 
+        // Same wording as the web reminder: one of the rotating
+        // `getMedicationReminderVariants()` texts, then "Nome - Dosagem" and the
+        // instructions, as the "Hora do Medicamento!" modal shows them.
+        val reminder = ReminderTexts.randomMedication(dose.time)
+        val text = "${reminder.title} ${reminder.body}"
         return NotificationCompat.Builder(context, sound.channelId)
             .setSmallIcon(R.drawable.ic_stat_memoria)
-            .setContentTitle("Hora do remédio: ${dose.medicationName}")
-            .setContentText(doseBody(dose))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(doseBody(dose)))
+            // `getMedicationNotificationTitle()` is "MemorIA" on the web.
+            .setContentTitle("MemorIA")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$text\n${doseBody(dose)}"))
             // Pre-O phones have no channels, so the profile has to be applied to
             // the notification itself for the setting to mean anything there.
-            .setPriority(
-                if (sound == ReminderSound.SUAVE) NotificationCompat.PRIORITY_DEFAULT
-                else NotificationCompat.PRIORITY_HIGH,
-            )
+            // The web's native channel is importance 5 — the maximum.
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setSound(sound.soundUri)
             .also { builder ->
                 sound.vibrationPattern?.let { builder.setVibrate(it) }
@@ -139,23 +162,44 @@ object MemoriaNotifications {
             // medication alert after a few seconds defeats the whole point.
             .setOngoing(false)
             .setContentIntent(open)
+            // The web modal's two buttons, in its order: "Soneca" then "Tomei".
+            .addAction(
+                0,
+                "Soneca",
+                actionIntent(context, ReminderReceiver.ACTION_SNOOZE, dose),
+            )
             .addAction(
                 0,
                 "Tomei",
                 actionIntent(context, ReminderReceiver.ACTION_TAKEN, dose),
             )
-            .addAction(
-                0,
-                "Adiar ${dose.snoozeMinutes} min",
-                actionIntent(context, ReminderReceiver.ACTION_SNOOZE, dose),
-            )
-            .addAction(
-                0,
-                "Não tomei",
-                actionIntent(context, ReminderReceiver.ACTION_MISSED, dose),
-            )
+            .also { builder -> applyFullScreen(context, builder, dose) }
             .build()
     }
+
+    /**
+     * `alertDisplayType` (onboarding step "Tipo de alerta"): "fullscreen" — the
+     * web's default — opens the "Hora do Medicamento!" modal over the whole
+     * screen, lock screen included ([com.memoria.mobile.ReminderAlertActivity]);
+     * "normal" leaves the ordinary heads-up notification. Where the system does
+     * not allow full-screen intents (Android 14+ without the permission) the
+     * notification simply stays a heads-up.
+     */
+    private fun applyFullScreen(context: Context, builder: NotificationCompat.Builder, dose: DoseAlarm) {
+        val type = runCatching {
+            com.memoria.mobile.ui.auth.OnboardingPrefs.alertDisplayType(context)
+        }.getOrDefault("fullscreen")
+        if (type != "fullscreen") return
+        val fullScreen = PendingIntent.getActivity(
+            context,
+            dose.requestCode + FULL_SCREEN_REQUEST_OFFSET,
+            com.memoria.mobile.ReminderAlertActivity.intentFor(context, dose),
+            pendingFlags(),
+        )
+        builder.setFullScreenIntent(fullScreen, true)
+    }
+
+    private const val FULL_SCREEN_REQUEST_OFFSET = 7_919
 
     fun buildConsultationNotification(
         context: Context,
@@ -163,6 +207,8 @@ object MemoriaNotifications {
         whenLabel: String,
         location: String,
         requestCode: Int,
+        /** Appointment `yyyy-MM-dd'T'HH:mm`, for the web's reminder wording. */
+        dateTime: String = "",
     ): Notification {
         val open = PendingIntent.getActivity(
             context,
@@ -171,13 +217,21 @@ object MemoriaNotifications {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             pendingFlags(),
         )
-        val body = listOfNotNull(whenLabel, location.takeIf { it.isNotBlank() }).joinToString(" · ")
+        // `getRandomConsultationReminderMessage()` — the web's rotating texts.
+        val reminder = ReminderTexts.randomConsultation(professional, dateTime)
+        val text = "${reminder.title} ${reminder.body}"
+        val body = listOfNotNull(
+            text,
+            whenLabel.takeIf { it.isNotBlank() },
+            location.takeIf { it.isNotBlank() }?.let { "Local: $it" },
+        ).joinToString("\n")
         return NotificationCompat.Builder(context, CHANNEL_CONSULTATIONS)
             .setSmallIcon(R.drawable.ic_stat_memoria)
-            .setContentTitle("Consulta: $professional")
-            .setContentText(body)
+            .setContentTitle("MemorIA")
+            .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVibrate(WEB_NOTIFICATION_VIBRATION)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(open)
@@ -199,14 +253,17 @@ object MemoriaNotifications {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             pendingFlags(),
         )
+        // The web's `getRandomReplenishmentReminderMessage()` texts.
+        val message = ReminderTexts.randomReplenishment(alarm.medicationName, alarm.stock)
+        val body = listOfNotNull(
+            message.body,
+            alarm.pharmacy.takeIf { it.isNotBlank() }?.let { "Farmácia: $it" },
+        ).joinToString("\n")
         return NotificationCompat.Builder(context, CHANNEL_STOCK)
             .setSmallIcon(R.drawable.ic_stat_memoria)
-            .setContentTitle(
-                if (alarm.stock <= 0) "Acabou: ${alarm.medicationName}"
-                else "Está a acabar: ${alarm.medicationName}",
-            )
-            .setContentText(alarm.body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(alarm.body))
+            .setContentTitle(message.title)
+            .setContentText(message.body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
@@ -214,11 +271,11 @@ object MemoriaNotifications {
             .build()
     }
 
+    /** `.modal-medication-dosage` ("Nome - Dosagem") plus the instructions. */
     private fun doseBody(dose: DoseAlarm): String = listOfNotNull(
-        dose.dosage.takeIf { it.isNotBlank() },
-        "Marcado para ${dose.time}",
+        "${dose.medicationName} - ${dose.dosage}",
         dose.instructions?.takeIf { it.isNotBlank() },
-    ).joinToString(" · ")
+    ).joinToString("\n")
 
     private fun actionIntent(context: Context, action: String, dose: DoseAlarm): PendingIntent =
         PendingIntent.getBroadcast(

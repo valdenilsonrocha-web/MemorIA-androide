@@ -30,7 +30,7 @@ data class DoseAlarm(
      * that can block, and the sound choice changing mid-window re-arms the whole
      * window anyway.
      */
-    val soundId: String = ReminderSound.PADRAO.id,
+    val soundId: String = ReminderSound.SYSTEM.id,
 ) {
     /**
      * Stable per medication+slot so re-arming the window replaces alarms instead
@@ -95,7 +95,7 @@ data class DoseAlarm(
                 time = time,
                 date = date,
                 snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE, 10),
-                soundId = intent.getStringExtra(EXTRA_SOUND) ?: ReminderSound.PADRAO.id,
+                soundId = intent.getStringExtra(EXTRA_SOUND) ?: ReminderSound.SYSTEM.id,
             )
         }
     }

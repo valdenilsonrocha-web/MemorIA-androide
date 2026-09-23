@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -51,7 +53,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.repoViewModel
 
@@ -96,6 +100,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -107,28 +112,17 @@ fun LoginScreen(
         // saved wrong would otherwise be unrecoverable without clearing app data
         // — but a patient reading "Servidor: https://..." on the sign-in screen
         // only learns that something can break.
+        // A logomarca MemórIA (`logo-memoria.png`) — o nome já vem no desenho.
         Image(
-            painter = painterResource(R.drawable.ic_logo_app),
-            contentDescription = "MemorIA Logo",
+            painter = painterResource(R.drawable.logo_memoria),
+            contentDescription = "MemórIA",
             modifier = Modifier
-                .size(76.dp)
-                .clip(RoundedCornerShape(18.dp))
+                .size(150.dp)
+                .clip(RoundedCornerShape(24.dp))
                 .combinedClickable(
                     onClick = {},
                     onLongClick = { showServer = !showServer },
                 ),
-        )
-        Text(
-            "MemórIA",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            "Lembretes de medicamentos com aviso ao cuidador pelo WhatsApp.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(4.dp))
 
@@ -258,7 +252,7 @@ fun LoginScreen(
                 onClick = onRegister,
                 enabled = !state.loading,
             ) {
-                Text("Criar uma nova conta", style = MaterialTheme.typography.bodyLarge)
+                SignUpPrompt()
             }
         } else {
             // =========================================================================
@@ -273,10 +267,27 @@ fun LoginScreen(
                 }
             }
 
+            // O cabeçalho do `authModal` da web: ícone de utilizador + "Login".
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(26.dp),
+                )
+                // `.modal-header h2`: 32px (phone), bold, `--primary-color`.
+                Text("Login", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+
             OutlinedTextField(
                 value = cpf,
                 onValueChange = { cpf = it },
-                label = { Text("CPF") },
+                label = { Text("CPF *") },
+                placeholder = { Text("000.000.000-00") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
@@ -284,7 +295,8 @@ fun LoginScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Senha") },
+                label = { Text("Senha *") },
+                placeholder = { Text("Sua senha") },
                 singleLine = true,
                 visualTransformation = if (showPassword) {
                     VisualTransformation.None
@@ -349,12 +361,15 @@ fun LoginScreen(
                 }
             }
 
-            TextButton(onClick = onForgotPassword, enabled = !state.loading) {
-                Text("Esqueci minha senha")
+            TextButton(onClick = onRegister, enabled = !state.loading) {
+                SignUpPrompt()
             }
 
-            TextButton(onClick = onRegister, enabled = !state.loading) {
-                Text("Criar conta")
+            TextButton(onClick = onForgotPassword, enabled = !state.loading) {
+                Text(
+                    "Esqueci minha senha",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -418,4 +433,23 @@ fun LoginScreen(
             }
         }
     }
+}
+
+/** "Não tem conta? **Cadastre-se**" — o link do `authModal` da web. */
+@Composable
+private fun SignUpPrompt() {
+    Text(
+        androidx.compose.ui.text.buildAnnotatedString {
+            withStyle(androidx.compose.ui.text.SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
+                append("Não tem conta? ")
+            }
+            withStyle(
+                androidx.compose.ui.text.SpanStyle(
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                ),
+            ) { append("Cadastre-se") }
+        },
+        style = MaterialTheme.typography.bodyLarge,
+    )
 }

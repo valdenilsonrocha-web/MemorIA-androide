@@ -10,12 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Medication
-import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -33,17 +32,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.DetailRow
 import com.memoria.mobile.ui.common.ErrorState
+import com.memoria.mobile.ui.common.MemoriaSnackbar
 import com.memoria.mobile.ui.common.LoadingBox
 import com.memoria.mobile.ui.common.SectionCard
 import com.memoria.mobile.ui.common.repoViewModel
-import com.memoria.mobile.ui.theme.GreenOk
 import com.memoria.mobile.ui.theme.RedMiss
+
+private val SecondaryColor = Color(0xFF66A9FF) // --secondary-color
+private val DangerColor = Color(0xFFEF4444)    // --danger-color
 
 /** "Detalhes do Medicamento" — the web `medicationDetailsPage`. */
 @Composable
@@ -68,13 +73,13 @@ fun MedicationDetailsScreen(
 
     Scaffold(
         topBar = { BackTopBar("Detalhes do Medicamento", onBack, iconRes = R.drawable.ic_menu_medications) },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { SnackbarHost(snackbar) { MemoriaSnackbar(it) } },
     ) { inner ->
         val med = state.medication
         when {
             state.loading && med == null -> LoadingBox(Modifier.padding(inner))
             med == null -> ErrorState(
-                state.error ?: "Medicamento não encontrado.",
+                state.error ?: "❌ Medicamento não encontrado",
                 onRetry = vm::load,
                 modifier = Modifier.padding(inner),
             )
@@ -86,26 +91,41 @@ fun MedicationDetailsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                val extras = state.extras
+                val summary = treatmentSummary(med, extras?.continuousUse == true, extras?.treatmentDurationDays)
+
                 SectionCard("Informações Básicas", icon = Icons.Filled.Medication) {
                     Column {
-                        DetailRow("Nome", med.name)
-                        DetailRow("Dosagem", med.dosage)
-                        DetailRow("Frequência", frequencyText(med.frequency))
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Nome:",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            MedicationIcon(state.look, size = 28.dp)
+                            Text(
+                                " ${med.name}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        DetailRow("Dosagem:", med.dosage)
+                        DetailRow("Frequência:", frequencyText(med.frequency))
                         if (med.frequency == "weekly") {
-                            DetailRow("Dias", weekDaysText(med.weekDays))
+                            DetailRow("Dias:", weekDaysText(med.weekDays))
                         }
                         DetailRow(
-                            "Horários",
+                            "Horários:",
                             med.times.filter { it.isNotBlank() }
                                 .joinToString(", ")
                                 .ifBlank { "Não definido" },
                         )
-                        DetailRow(
-                            "Estoque",
-                            "${med.stock} doses",
-                            valueColor = if (med.stock <= 3) RedMiss else MaterialTheme.colorScheme.onSurface,
-                        )
-                        DetailRow("Situação", if (med.active) "Ativo" else "Inativo")
+                        DetailRow("Estoque:", "${med.stock} doses")
+                        summary?.let { DetailRow("Tratamento:", it) }
                     }
                 }
 
@@ -115,49 +135,26 @@ fun MedicationDetailsScreen(
                     }
                 }
 
-                med.supplier?.takeIf { it.name.isNotBlank() || it.phone.isNotBlank() }?.let { supplier ->
-                    SectionCard(
-                        "Fornecedor / Farmácia",
-                        subtitle = "Avisada pelo WhatsApp quando o estoque acabar.",
-                        icon = Icons.Filled.Storefront,
-                    ) {
+                val doctor = extras?.prescribingDoctor.orEmpty()
+                val pharmacy = extras?.dispensingPharmacy.orEmpty()
+                if (doctor.isNotBlank() || pharmacy.isNotBlank()) {
+                    SectionCard("Prescrição e Dispensação", icon = Icons.Filled.MedicalServices) {
                         Column {
-                            if (supplier.name.isNotBlank()) DetailRow("Nome", supplier.name)
-                            if (supplier.phone.isNotBlank()) DetailRow("Contato", supplier.phone)
-                        }
-                    }
-                }
-
-                // Tratamento e receita — campos guardados só neste telefone.
-                state.extras?.takeIf { !it.isEmpty }?.let { extras ->
-                    SectionCard("Tratamento e Receita", icon = Icons.AutoMirrored.Filled.Assignment) {
-                        Column {
-                            if (extras.continuousUse) {
-                                DetailRow("Duração", "Uso contínuo")
-                            } else {
-                                extras.treatmentDurationDays?.let {
-                                    DetailRow("Duração do tratamento", "$it dia(s)")
-                                }
-                            }
-                            if (extras.prescribingDoctor.isNotBlank()) {
-                                DetailRow("Médico prescritor", extras.prescribingDoctor)
-                            }
-                            if (extras.dispensingPharmacy.isNotBlank()) {
-                                DetailRow("Farmácia dispensadora", extras.dispensingPharmacy)
-                            }
+                            if (doctor.isNotBlank()) DetailRow("Médico Prescritor:", doctor)
+                            if (pharmacy.isNotBlank()) DetailRow("Farmácia Dispensadora:", pharmacy)
                         }
                     }
                 }
 
                 SectionCard("Estatísticas", icon = Icons.AutoMirrored.Filled.ShowChart) {
                     Column {
-                        DetailRow("Total de doses", "${state.total}")
-                        DetailRow("Doses tomadas", "${state.taken}", valueColor = GreenOk)
-                        DetailRow("Doses perdidas", "${state.missed}", valueColor = RedMiss)
+                        DetailRow("Total de doses:", "${state.total}")
+                        DetailRow("Doses tomadas:", "${state.taken}", valueColor = SecondaryColor)
+                        DetailRow("Doses perdidas:", "${state.missed}", valueColor = DangerColor)
                         DetailRow(
-                            "Taxa de adesão",
+                            "Taxa de adesão:",
                             "${state.adherence}%",
-                            valueColor = if (state.adherence >= 80) GreenOk else RedMiss,
+                            valueColor = if (state.adherence >= 80) SecondaryColor else DangerColor,
                         )
                     }
                 }
@@ -165,7 +162,7 @@ fun MedicationDetailsScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { onEdit(medicationId) }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Filled.Edit, contentDescription = null)
-                        Text("  Editar")
+                        Text(" Editar")
                     }
                     Button(
                         onClick = { confirmDelete = true },
@@ -173,7 +170,7 @@ fun MedicationDetailsScreen(
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = null)
-                        Text("  Excluir")
+                        Text(" Excluir")
                     }
                 }
             }
@@ -183,11 +180,10 @@ fun MedicationDetailsScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Excluir medicamento") },
-            text = { Text("Esta ação não pode ser desfeita. Deseja continuar?") },
+            text = { Text(DELETE_CONFIRM_TEXT) },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; vm.delete() }) {
-                    Text("Excluir", color = RedMiss)
+                    Text("OK", color = RedMiss)
                 }
             },
             dismissButton = {
@@ -205,7 +201,7 @@ private fun frequencyText(frequency: String): String = when (frequency) {
 }
 
 private fun weekDaysText(days: List<Int>?): String {
-    if (days.isNullOrEmpty()) return "N/A"
+    if (days == null) return "N/A"
     val names = listOf("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb")
-    return days.sorted().mapNotNull { names.getOrNull(it) }.joinToString(", ").ifBlank { "N/A" }
+    return days.mapNotNull { names.getOrNull(it) }.joinToString(", ")
 }

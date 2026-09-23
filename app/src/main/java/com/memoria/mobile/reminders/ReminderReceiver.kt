@@ -70,6 +70,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 whenLabel = alarm.whenLabel,
                 location = alarm.location,
                 requestCode = alarm.requestCode,
+                dateTime = alarm.dateTime,
             ),
         )
     }
@@ -117,7 +118,21 @@ class ReminderReceiver : BroadcastReceiver() {
             },
         )
         background(this) {
-            when (val r = app.graph.repository.addHistory(request)) {
+            val repo = app.graph.repository
+            // "Tomei" also takes one unit off the stock, like the web's markAsTaken().
+            val result = if (status == "taken") {
+                DoseActions.markTaken(
+                    repo = repo,
+                    medicationId = dose.medicationId,
+                    medicationName = dose.medicationName,
+                    dosage = dose.dosage,
+                    time = dose.time,
+                    scheduledFor = dose.scheduledForIso,
+                )
+            } else {
+                repo.addHistory(request)
+            }
+            when (val r = result) {
                 is ApiResult.Ok -> app.graph.reminderScheduler.reschedule()
                 // Offline is the common case here. The dose is not lost — the
                 // alarm stays cancelled but the window rebuilds from history on
