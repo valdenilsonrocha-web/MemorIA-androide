@@ -217,3 +217,11 @@ fun MemoriaSnackbar(data: SnackbarData) {
         ToastCard(icon, type, cleanToastMessage(message), onClose = { data.dismiss() })
     }
 }
+
+/**
+ * An error text for the toast. A message with no emoji falls back to the green
+ * "success" card in [classifyToast], so an error such as "Resource not found"
+ * showed up with a ✅. Errors always get the red ❌.
+ */
+fun errorToast(message: String): String =
+    if (message.contains("❌") || message.contains("⚠️") || message.contains("🚨")) message else "❌ $message"

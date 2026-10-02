@@ -154,7 +154,7 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
     }
     LaunchedEffect(state.error) {
         if (state.prescriptions.isNotEmpty() || !state.loading) {
-            state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+            state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
         }
     }
 

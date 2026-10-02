@@ -109,7 +109,7 @@ fun MyDoctorsScreen(onBack: () -> Unit) {
         state.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() }
     }
     LaunchedEffect(state.error) {
-        state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+        state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
     }
 
     Scaffold(

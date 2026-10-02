@@ -127,7 +127,7 @@ fun ProfileScreen(onBack: () -> Unit) {
         // here too would clear it and leave an empty form that silently
         // overwrites the real data on save.
         if (state.user != null) {
-            state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+            state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
         }
     }
 

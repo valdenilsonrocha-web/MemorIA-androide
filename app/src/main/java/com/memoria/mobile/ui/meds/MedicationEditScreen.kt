@@ -143,7 +143,7 @@ internal fun MedicationFormEffects(state: MedEditState, vm: MedicationEditViewMo
     }
     LaunchedEffect(state.error) {
         state.error?.let {
-            MemoriaToast.show(it)
+            MemoriaToast.show(com.memoria.mobile.ui.common.errorToast(it))
             vm.clearError()
         }
     }

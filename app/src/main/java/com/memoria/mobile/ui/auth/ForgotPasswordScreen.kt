@@ -46,7 +46,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit, onFinished: () -> Unit) {
         state.notice?.let { snackbar.showSnackbar(it); vm.consumeNotice() }
     }
     LaunchedEffect(state.error) {
-        state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+        state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
     }
 
     Scaffold(

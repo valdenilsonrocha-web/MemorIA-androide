@@ -109,7 +109,7 @@ fun DashboardScreen(
         // reading "Nenhum medicamento cadastrado" — a medication app must never
         // show an empty schedule when it simply could not reach the server.
         if (state.medications.isNotEmpty()) {
-            state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+            state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
         }
     }
 

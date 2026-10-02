@@ -67,7 +67,7 @@ fun MedicationDetailsScreen(
     LaunchedEffect(state.error) {
         // A load failure already owns the whole screen; only report the rest.
         if (state.medication != null) {
-            state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+            state.error?.let { snackbar.showSnackbar(com.memoria.mobile.ui.common.errorToast(it)); vm.clearError() }
         }
     }
 
