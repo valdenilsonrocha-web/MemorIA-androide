@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.meds
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -84,17 +86,17 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
         editingId = medicationId
         if (medicationId == null) {
             _state.value = MedEditState(isNew = true)
-            viewModelScope.launch { _state.value = _state.value.copy(isPremium = isPremium()) }
+            viewModelScope.launch { _state.update { it.copy(isPremium = isPremium()) } }
             return
         }
-        _state.value = _state.value.copy(loading = true, isNew = false)
+        _state.update { it.copy(loading = true, isNew = false) }
         viewModelScope.launch {
             val premium = isPremium()
             when (val r = repo.medications()) {
                 is ApiResult.Ok -> {
                     val med = r.value.firstOrNull { it.id == medicationId }
                     if (med == null) {
-                        _state.value = _state.value.copy(loading = false, error = "❌ Medicamento não encontrado")
+                        _state.update { it.copy(loading = false, error = "❌ Medicamento não encontrado") }
                     } else {
                         val extras = repo.local.medicationExtrasFor(medicationId)
                         val look = repo.local.medicationLookFor(medicationId)
@@ -124,11 +126,11 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
                         )
                     }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     error = "❌ ${r.message}",
                     isPremium = premium,
-                )
+                ) }
             }
         }
     }
@@ -136,74 +138,74 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
     private suspend fun isPremium(): Boolean =
         (repo.me() as? ApiResult.Ok)?.value?.isPremium == true
 
-    fun onName(v: String) { _state.value = _state.value.copy(name = v) }
-    fun onDosage(v: String) { _state.value = _state.value.copy(dosage = v) }
-    fun onStock(v: String) { _state.value = _state.value.copy(stock = v.filter { it.isDigit() }) }
-    fun onInstructions(v: String) { _state.value = _state.value.copy(instructions = v) }
-    fun onFrequency(v: String) { _state.value = _state.value.copy(frequency = v) }
-    fun onSupplierName(v: String) { _state.value = _state.value.copy(supplierName = v) }
+    fun onName(v: String) { _state.update { it.copy(name = v) } }
+    fun onDosage(v: String) { _state.update { it.copy(dosage = v) } }
+    fun onStock(v: String) { _state.update { it.copy(stock = v.filter { it.isDigit() }) } }
+    fun onInstructions(v: String) { _state.update { it.copy(instructions = v) } }
+    fun onFrequency(v: String) { _state.update { it.copy(frequency = v) } }
+    fun onSupplierName(v: String) { _state.update { it.copy(supplierName = v) } }
     fun onSupplierPhone(v: String) {
-        _state.value = _state.value.copy(supplierPhone = v.filter { it.isDigit() }.take(20))
+        _state.update { it.copy(supplierPhone = v.filter { it.isDigit() }.take(20)) }
     }
     fun onTreatmentDurationDays(v: String) {
-        _state.value = _state.value.copy(treatmentDurationDays = v.filter { it.isDigit() }.take(4))
+        _state.update { it.copy(treatmentDurationDays = v.filter { it.isDigit() }.take(4)) }
     }
     fun onContinuousUse(v: Boolean) {
         // `updateContinuousUseFieldState()`: uso contínuo desativa e limpa a duração.
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             continuousUse = v,
             treatmentDurationDays = if (v) "" else _state.value.treatmentDurationDays,
-        )
+        ) }
     }
-    fun onPrescribingDoctor(v: String) { _state.value = _state.value.copy(prescribingDoctor = v) }
-    fun onDispensingPharmacy(v: String) { _state.value = _state.value.copy(dispensingPharmacy = v) }
+    fun onPrescribingDoctor(v: String) { _state.update { it.copy(prescribingDoctor = v) } }
+    fun onDispensingPharmacy(v: String) { _state.update { it.copy(dispensingPharmacy = v) } }
 
-    fun onMedicationForm(v: String) { _state.value = _state.value.copy(medicationForm = normalizeMedicationForm(v)) }
-    fun onPillShape(v: String) { _state.value = _state.value.copy(pillShape = v) }
-    fun onPillColor(v: String) { _state.value = _state.value.copy(pillColor = sanitizePillColor(v)) }
-    fun onCapsuleColor1(v: String) { _state.value = _state.value.copy(capsuleColor1 = sanitizePillColor(v)) }
-    fun onCapsuleColor2(v: String) { _state.value = _state.value.copy(capsuleColor2 = sanitizePillColor(v, "#2f7dff")) }
+    fun onMedicationForm(v: String) { _state.update { it.copy(medicationForm = normalizeMedicationForm(v)) } }
+    fun onPillShape(v: String) { _state.update { it.copy(pillShape = v) } }
+    fun onPillColor(v: String) { _state.update { it.copy(pillColor = sanitizePillColor(v)) } }
+    fun onCapsuleColor1(v: String) { _state.update { it.copy(capsuleColor1 = sanitizePillColor(v)) } }
+    fun onCapsuleColor2(v: String) { _state.update { it.copy(capsuleColor2 = sanitizePillColor(v, "#2f7dff")) } }
 
     /** `applyMedicationFromLibrary()`. */
     fun applyFromLibrary(med: LibraryMedication, dosage: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             name = med.name,
             dosage = dosage,
             instructions = med.instructions,
             frequency = med.frequency.ifBlank { _state.value.frequency },
             libraryMessage = "✅ ${med.name} ($dosage) selecionado. Defina os horários e salve.",
-        )
+        ) }
     }
 
-    fun consumeLibraryMessage() { _state.value = _state.value.copy(libraryMessage = null) }
+    fun consumeLibraryMessage() { _state.update { it.copy(libraryMessage = null) } }
 
     /** "Adicionar Horário": a new, empty time slot. */
     fun addTimeSlot() {
-        _state.value = _state.value.copy(times = _state.value.times + "")
+        _state.update { it.copy(times = _state.value.times + "") }
     }
 
     fun setTime(index: Int, time: String) {
         val list = _state.value.times.toMutableList()
         if (index !in list.indices) return
         list[index] = time
-        _state.value = _state.value.copy(times = list)
+        _state.update { it.copy(times = list) }
     }
 
     fun removeTimeSlot(index: Int) {
         val list = _state.value.times.toMutableList()
         if (index !in list.indices || list.size <= 1) return
         list.removeAt(index)
-        _state.value = _state.value.copy(times = list)
+        _state.update { it.copy(times = list) }
     }
 
     fun toggleWeekDay(day: Int) {
         val current = _state.value.weekDays
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             weekDays = if (current.contains(day)) current - day else (current + day).sorted(),
-        )
+        ) }
     }
 
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     fun save() {
         val s = _state.value
@@ -237,11 +239,11 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
             // The server does NOT enforce this one, so skipping the check here
             // meant the phone handed out for free what the site charges for.
             if (editingId == null && !allowedToAdd()) {
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     saving = false,
                     error = PLAN_LIMIT_MESSAGE,
                     blockedByPlan = true,
-                )
+                ) }
                 return@launch
             }
 
@@ -253,7 +255,7 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
                     // Saved after the server call, keyed by the id it assigned: a new
                     // medication has no id to file the extras under until then.
                     (result.value.id ?: editingId)?.let { id -> saveLocal(id, s) }
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         saving = false,
                         saved = true,
                         savedMessage = if (isEdit) {
@@ -261,16 +263,16 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
                         } else {
                             "✅ Medicamento adicionado com sucesso!"
                         },
-                    )
+                    ) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     saving = false,
                     error = if (isEdit) {
                         "❌ Erro ao atualizar medicamento. Tente novamente."
                     } else {
                         "❌ Erro ao adicionar medicamento. Tente novamente."
                     },
-                )
+                ) }
             }
         }
     }
@@ -301,7 +303,7 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
         return PlanLimits.canAddMedication(user, active)
     }
 
-    fun clearPlanBlock() { _state.value = _state.value.copy(blockedByPlan = false, error = null) }
+    fun clearPlanBlock() { _state.update { it.copy(blockedByPlan = false, error = null) } }
 
     private companion object {
         /** The web's toast in `handleAddMedication()`, word for word. */

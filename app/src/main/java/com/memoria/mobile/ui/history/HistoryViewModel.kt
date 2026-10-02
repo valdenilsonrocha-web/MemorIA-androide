@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.history
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -98,7 +100,7 @@ class HistoryViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<HistoryUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             DoseActions.flushPending(repo)
             val historyResult = repo.history(limit = 200)
@@ -107,7 +109,7 @@ class HistoryViewModel(private val repo: MemoriaRepository) : ViewModel() {
             val looks = repo.local.medicationLooks().associateBy { it.medicationId }
 
             if (historyResult is ApiResult.Err) {
-                _state.value = _state.value.copy(loading = false, error = historyResult.message)
+                _state.update { it.copy(loading = false, error = historyResult.message) }
                 return@launch
             }
             // Doses answered offline (still queued) are part of the history, as on the web.
@@ -120,7 +122,7 @@ class HistoryViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 val stock = m.stock.coerceAtLeast(0)
                 StockNeed(m, stock, ReminderTexts.randomReplenishment(m.name, stock))
             }
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 loading = false,
                 entries = entries,
                 medications = meds,
@@ -128,23 +130,23 @@ class HistoryViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 pending = pending,
                 stockNeeds = stockNeeds,
                 user = user,
-            )
+            ) }
         }
     }
 
-    fun setFilter(filter: String) { _state.value = _state.value.copy(filter = filter) }
+    fun setFilter(filter: String) { _state.update { it.copy(filter = filter) } }
 
     /** "Marcar como tomado" — `resolvePendingMedication()` → `takeMedication()`. */
     fun resolve(slot: DoseSlot) {
         val id = slot.medication.id ?: return
         viewModelScope.launch {
             val r = DoseActions.markTaken(repo, id, slot.medication.name, slot.medication.dosage, slot.time)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 message = if (r is ApiResult.Ok) "✅ Medicamento registrado como tomado!" else "❌ Erro ao registrar medicamento.",
-            )
+            ) }
             if (r is ApiResult.Ok) load()
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
 }

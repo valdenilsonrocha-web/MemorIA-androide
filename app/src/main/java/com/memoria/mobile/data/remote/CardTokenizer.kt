@@ -1,5 +1,6 @@
 package com.memoria.mobile.data.remote
 
+import com.memoria.mobile.di.MoshiProvider
 import com.squareup.moshi.Moshi
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -36,7 +37,7 @@ class CardTokenizer {
                     .callTimeout(25, TimeUnit.SECONDS)
                     .build()
             )
-            .addConverterFactory(MoshiConverterFactory.create(Moshi.Builder().build()))
+            .addConverterFactory(MoshiConverterFactory.create(MoshiProvider.instance))
             .build()
             .create(CardTokenService::class.java)
     }

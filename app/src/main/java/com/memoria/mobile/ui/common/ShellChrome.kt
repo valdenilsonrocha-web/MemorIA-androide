@@ -110,9 +110,12 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
  * sobre o azul da marca.
  */
 @Composable
-fun MemoriaLogo(modifier: Modifier = Modifier, height: Dp = 54.dp) {
+fun MemoriaLogo(modifier: Modifier = Modifier, height: Dp = 54.dp, complete: Boolean = false) {
     Image(
-        painter = androidx.compose.ui.res.painterResource(R.drawable.logo_memoria),
+        // `logo-memoria-completa.png`: ícone + nome em fundo transparente — a do cabeçalho.
+        painter = androidx.compose.ui.res.painterResource(
+            if (complete) R.drawable.logo_memoria_completa else R.drawable.logo_memoria,
+        ),
         contentDescription = "MemórIA",
         contentScale = ContentScale.Fit,
         modifier = modifier.height(height),
@@ -125,7 +128,7 @@ fun MemoriaLogo(modifier: Modifier = Modifier, height: Dp = 54.dp) {
  * centro e, à direita, o sino das pendências e o botão de partilhar.
  *
  * Os tamanhos são os do `@media (max-width: 480px)` do `main.css` — é essa a
- * regra que vale num telemóvel: logo de 54px, avatar de 50px, botões de 44px.
+ * regra que vale num telemóvel: logo de 96px (cabeçalho de 104px), avatar de 50px, botões de 44px.
  *
  * [pendingCount] é o `getPendingMedicationCount()` da web (doses de hoje por
  * tomar + medicamentos com estoque baixo); acima de zero o sino ganha o badge
@@ -160,13 +163,13 @@ fun MemoriaHeader(
             .padding(horizontal = 32.dp, vertical = 20.dp),
     ) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 58.dp),
+            Modifier.fillMaxWidth().heightIn(min = 104.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             HeaderAvatar(photoPath = photoPath, onClick = onProfile)
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                MemoriaLogo(Modifier.widthIn(max = 230.dp), height = 54.dp)
+                MemoriaLogo(Modifier.widthIn(max = 230.dp), height = 96.dp, complete = true)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),

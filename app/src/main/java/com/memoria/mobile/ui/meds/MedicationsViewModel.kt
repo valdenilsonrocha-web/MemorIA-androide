@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.meds
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -37,7 +39,7 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<MedsUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.medications()) {
                 is ApiResult.Ok -> {
@@ -48,7 +50,7 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     val history = (repo.history(limit = 200) as? ApiResult.Ok)?.value.orEmpty()
                     val looks = repo.local.medicationLooks().associateBy { it.medicationId }
                     val extras = repo.local.medicationExtras().associateBy { it.medicationId }
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         loading = false,
                         medications = active,
                         local = active.mapNotNull { m -> m.id?.let { it to MedLocal(looks[it], extras[it]) } }.toMap(),
@@ -57,9 +59,9 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
                             history,
                             today,
                         ),
-                    )
+                    ) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
@@ -69,9 +71,9 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val id = slot.medication.id ?: return
         viewModelScope.launch {
             val r = DoseActions.markTaken(repo, id, slot.medication.name, slot.medication.dosage, slot.time)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 message = if (r is ApiResult.Ok) "✅ Medicamento registrado como tomado!" else "❌ Erro ao registrar medicamento.",
-            )
+            ) }
             if (r is ApiResult.Ok) load()
         }
     }
@@ -95,7 +97,7 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     )
                 )
             }
-            _state.value = _state.value.copy(message = "⏰ Alarme adiado por $minutes minutos")
+            _state.update { it.copy(message = "⏰ Alarme adiado por $minutes minutos") }
         }
     }
 
@@ -105,14 +107,14 @@ class MedicationsViewModel(private val repo: MemoriaRepository) : ViewModel() {
             when (repo.deleteMedication(id)) {
                 is ApiResult.Ok -> {
                     repo.local.deleteMedicationLook(id)
-                    _state.value = _state.value.copy(message = "🗑️ Medicamento excluído")
+                    _state.update { it.copy(message = "🗑️ Medicamento excluído") }
                     load()
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(message = "❌ Erro ao excluir medicamento")
+                is ApiResult.Err -> _state.update { it.copy(message = "❌ Erro ao excluir medicamento") }
             }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 }

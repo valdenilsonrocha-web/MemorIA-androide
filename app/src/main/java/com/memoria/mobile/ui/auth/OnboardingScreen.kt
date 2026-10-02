@@ -568,8 +568,8 @@ private fun NameIllustration() {
             drawCircle(White.copy(alpha = 0.6f), 22 * u, Offset(110 * u, 68 * u), style = Stroke(2.5f * u))
             val body = Path().apply {
                 moveTo(52 * u, 170 * u)
-                quadraticBezierTo(52 * u, 128 * u, 110 * u, 122 * u)
-                quadraticBezierTo(168 * u, 128 * u, 168 * u, 170 * u)
+                quadraticTo(52 * u, 128 * u, 110 * u, 122 * u)
+                quadraticTo(168 * u, 128 * u, 168 * u, 170 * u)
             }
             drawPath(body, White.copy(alpha = 0.18f))
             drawPath(body, White.copy(alpha = 0.55f), style = Stroke(2.5f * u))
@@ -911,7 +911,7 @@ private fun SoundIllustration() {
             fun arc(x0: Float, xc: Float, y0: Float, y1: Float, alpha: Float, w: Float) {
                 val p = Path().apply {
                     moveTo(x0 * u, y0 * u)
-                    quadraticBezierTo(xc * u, 110 * u, x0 * u, y1 * u)
+                    quadraticTo(xc * u, 110 * u, x0 * u, y1 * u)
                 }
                 drawPath(p, White.copy(alpha = alpha), style = Stroke(w * u, cap = androidx.compose.ui.graphics.StrokeCap.Round))
             }

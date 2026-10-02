@@ -34,8 +34,9 @@ enum class ThemePreset(
     ),
     PASTEL_AZUL(
         "pastel-azul", "Pastel Azul",
-        primary = Color(0xFF7AA2F7), dark = Color(0xFF5C7FCA),
-        light = Color(0xFFC7D8FB), secondary = Color(0xFF8ECAE6),
+        // O azul da marca: é a paleta por defeito da web e a do :root do main.css.
+        primary = Color(0xFF0565F1), dark = Color(0xFF0349B2),
+        light = Color(0xFFE6F0FF), secondary = Color(0xFF61A3FF),
         background = Color(0xFFF1F6FF), border = Color(0xFFCFDCF6),
     ),
     PASTEL_VERDE(
@@ -82,7 +83,10 @@ enum class ThemePreset(
     );
 
     companion object {
-        /** Unknown or missing id falls back to the web app's own default. */
+        /**
+         * Unknown or missing id falls back to the web's default, `pastel-azul`,
+         * whose palette is the brand blue (#0565f1).
+         */
         fun from(id: String?): ThemePreset =
             entries.firstOrNull { it.id == id } ?: PASTEL_AZUL
     }

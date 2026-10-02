@@ -318,8 +318,11 @@ fun ProfileScreen(onBack: () -> Unit) {
 
 @Composable
 private fun ProfilePhoto(path: String?, version: Int) {
-    val bitmap = remember(path, version) {
-        path?.let { runCatching { BitmapFactory.decodeFile(it)?.asImageBitmap() }.getOrNull() }
+    var bitmap by remember(path, version) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(path, version) {
+        bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            path?.let { runCatching { BitmapFactory.decodeFile(it)?.asImageBitmap() }.getOrNull() }
+        }
     }
     // `.profile-photo`: 150px circle, 4px primary border, --bg-secondary behind;
     // the placeholder is `fa-user` at 80px in --text-secondary.
@@ -331,9 +334,10 @@ private fun ProfilePhoto(path: String?, version: Int) {
             .border(4.dp, MaterialTheme.colorScheme.primary, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) {
+        val bmp = bitmap
+        if (bmp != null) {
             Image(
-                bitmap = bitmap,
+                bitmap = bmp,
                 contentDescription = "Foto de perfil",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(150.dp).clip(CircleShape),

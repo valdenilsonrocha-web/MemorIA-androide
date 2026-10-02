@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.whatsapp
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -29,7 +31,7 @@ class WhatsAppViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<WhatsAppUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.me()) {
                 is ApiResult.Ok -> _state.value = WhatsAppUiState(
@@ -38,12 +40,12 @@ class WhatsAppViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     caregivers = r.value.caregivers,
                     isPremium = r.value.isPremium,
                 )
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
 
-    fun onPatientPhone(v: String) { _state.value = _state.value.copy(patientPhone = v) }
+    fun onPatientPhone(v: String) { _state.update { it.copy(patientPhone = v) } }
 
     fun addCaregiver(name: String, phone: String, relation: String) {
         val s = _state.value
@@ -58,7 +60,7 @@ class WhatsAppViewModel(private val repo: MemoriaRepository) : ViewModel() {
     }
 
     fun removeCaregiver(caregiver: Caregiver) {
-        _state.value = _state.value.copy(caregivers = _state.value.caregivers - caregiver)
+        _state.update { it.copy(caregivers = _state.value.caregivers - caregiver) }
     }
 
     fun save() {
@@ -66,20 +68,20 @@ class WhatsAppViewModel(private val repo: MemoriaRepository) : ViewModel() {
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
             when (val r = repo.setCaregivers(s.caregivers, s.patientPhone)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     saving = false,
                     patientPhone = r.value.phone,
                     caregivers = r.value.caregivers,
                     isPremium = r.value.isPremium,
                     message = "Configuração salva. Os avisos irão pelo WhatsApp.",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(saving = false, error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(saving = false, error = r.message) }
             }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     private fun caregiverLimitMessage(max: Int): String =
         if (max == 1) "Plano gratuito permite 1 cuidador. Assine o Premium para até 3."

@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.profile
 
+import kotlinx.coroutines.flow.update
+
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -57,7 +59,7 @@ class ProfileViewModel(
     val state: StateFlow<ProfileUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val stored = repo.local.emergencyContacts()
             val age = repo.local.uiSetting(KEY_AGE).orEmpty()
@@ -98,22 +100,22 @@ class ProfileViewModel(
                         contacts = contacts,
                     )
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     error = r.message,
                     age = age,
                     photoPath = photo,
                     gender = gender,
                     contacts = stored,
-                )
+                ) }
             }
         }
     }
 
-    fun onName(v: String) { _state.value = _state.value.copy(name = v) }
-    fun onAge(v: String) { _state.value = _state.value.copy(age = v.filter { it.isDigit() }.take(3)) }
-    fun onEmail(v: String) { _state.value = _state.value.copy(email = v) }
-    fun onPhone(v: String) { _state.value = _state.value.copy(phone = v) }
+    fun onName(v: String) { _state.update { it.copy(name = v) } }
+    fun onAge(v: String) { _state.update { it.copy(age = v.filter { it.isDigit() }.take(3)) } }
+    fun onEmail(v: String) { _state.update { it.copy(email = v) } }
+    fun onPhone(v: String) { _state.update { it.copy(phone = v) } }
 
     /**
      * "Salvar Informações". The web keeps no validation here (it saves whatever
@@ -133,12 +135,12 @@ class ProfileViewModel(
                 state = s.state.trim().ifBlank { null },
             )
             when (val r = repo.updateProfile(request)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     saving = false,
                     user = r.value,
                     message = "✅ Perfil e dados médicos salvos com sucesso!",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(saving = false, error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(saving = false, error = r.message) }
             }
         }
     }
@@ -159,36 +161,36 @@ class ProfileViewModel(
                 }.getOrNull()
             }
             if (saved == null) {
-                _state.value = _state.value.copy(error = "Não foi possível carregar a foto escolhida.")
+                _state.update { it.copy(error = "Não foi possível carregar a foto escolhida.") }
                 return@launch
             }
             repo.local.setUiSetting(KEY_PHOTO, saved)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 photoPath = saved,
                 photoVersion = _state.value.photoVersion + 1,
                 message = "✅ Foto atualizada!",
-            )
+            ) }
         }
     }
 
     // ---- Emergency contacts ----
 
     fun openContactDialog(contact: EmergencyContactRecord? = null) {
-        _state.value = _state.value.copy(contactDialogOpen = true, editingContact = contact)
+        _state.update { it.copy(contactDialogOpen = true, editingContact = contact) }
     }
 
     /** "Alterar Contato": edits the first contact, as the web does. */
     fun openPrimaryContactEditor() {
         val first = _state.value.contacts.firstOrNull()
         if (first == null) {
-            _state.value = _state.value.copy(error = "❌ Cadastre um contato para poder alterar.")
+            _state.update { it.copy(error = "❌ Cadastre um contato para poder alterar.") }
             return
         }
         openContactDialog(first)
     }
 
     fun closeContactDialog() {
-        _state.value = _state.value.copy(contactDialogOpen = false, editingContact = null)
+        _state.update { it.copy(contactDialogOpen = false, editingContact = null) }
     }
 
     /**
@@ -200,11 +202,11 @@ class ProfileViewModel(
         // The server truncates the list to the plan limit without saying so, so a
         // fourth contact used to look saved here and be gone after a reload.
         if (editing == null && !_state.value.canAddContact) {
-            _state.value = _state.value.copy(error = contactLimitMessage(_state.value.user?.isPremium == true))
+            _state.update { it.copy(error = contactLimitMessage(_state.value.user?.isPremium == true)) }
             return
         }
         if (name.isBlank() || relation.isBlank() || phone.isBlank()) {
-            _state.value = _state.value.copy(error = "❌ Preencha os campos obrigatórios do contato")
+            _state.update { it.copy(error = "❌ Preencha os campos obrigatórios do contato") }
             return
         }
         val contact = EmergencyContactRecord(
@@ -240,14 +242,14 @@ class ProfileViewModel(
     private fun persistContacts(contacts: List<EmergencyContactRecord>, successMessage: String?) {
         viewModelScope.launch {
             repo.local.saveEmergencyContacts(contacts)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 contacts = contacts,
                 contactDialogOpen = false,
                 editingContact = null,
                 message = successMessage,
-            )
+            ) }
             val r = repo.updateProfile(ProfileUpdateRequest(caregivers = contacts.toCaregivers()))
-            if (r is ApiResult.Ok) _state.value = _state.value.copy(user = r.value)
+            if (r is ApiResult.Ok) _state.update { it.copy(user = r.value) }
         }
     }
 
@@ -264,7 +266,7 @@ class ProfileViewModel(
     fun contactWhatsAppUrl(contact: EmergencyContactRecord): String? {
         var phone = contact.phone.digitsOnly()
         if (phone.isEmpty()) {
-            _state.value = _state.value.copy(error = "❌ Este contato não possui telefone válido")
+            _state.update { it.copy(error = "❌ Este contato não possui telefone válido") }
             return null
         }
         // wa.me needs the country code; a Brazilian DDD + number has 10 or 11 digits.
@@ -309,8 +311,8 @@ class ProfileViewModel(
         return if (normalized.endsWith("a")) "Sra." else "Sr."
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     private companion object {
         const val KEY_AGE = "profile_age"

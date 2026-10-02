@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.auth
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -30,16 +32,16 @@ class ForgotPasswordViewModel(private val repo: MemoriaRepository) : ViewModel()
     private val _state = MutableStateFlow(ForgotPasswordUiState())
     val state: StateFlow<ForgotPasswordUiState> = _state.asStateFlow()
 
-    fun onCpf(v: String) { _state.value = _state.value.copy(cpf = v.filter { it.isDigit() }.take(11), error = null) }
-    fun onEmail(v: String) { _state.value = _state.value.copy(email = v, error = null) }
-    fun onToken(v: String) { _state.value = _state.value.copy(token = v.trim(), error = null) }
-    fun onNewPassword(v: String) { _state.value = _state.value.copy(newPassword = v, error = null) }
-    fun onConfirmPassword(v: String) { _state.value = _state.value.copy(confirmPassword = v, error = null) }
+    fun onCpf(v: String) { _state.update { it.copy(cpf = v.filter { it.isDigit() }.take(11), error = null) } }
+    fun onEmail(v: String) { _state.update { it.copy(email = v, error = null) } }
+    fun onToken(v: String) { _state.update { it.copy(token = v.trim(), error = null) } }
+    fun onNewPassword(v: String) { _state.update { it.copy(newPassword = v, error = null) } }
+    fun onConfirmPassword(v: String) { _state.update { it.copy(confirmPassword = v, error = null) } }
 
-    fun backToRequest() { _state.value = _state.value.copy(step = RecoveryStep.REQUEST, error = null) }
+    fun backToRequest() { _state.update { it.copy(step = RecoveryStep.REQUEST, error = null) } }
 
     /** For someone who already has a code from a previous attempt or the web. */
-    fun goToReset() { _state.value = _state.value.copy(step = RecoveryStep.RESET, error = null) }
+    fun goToReset() { _state.update { it.copy(step = RecoveryStep.RESET, error = null) } }
 
     /**
      * The server answers identically whether or not the account exists, so it
@@ -59,13 +61,13 @@ class ForgotPasswordViewModel(private val repo: MemoriaRepository) : ViewModel()
         _state.value = s.copy(working = true, error = null)
         viewModelScope.launch {
             when (val r = repo.forgotPassword(s.cpf, s.email)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     working = false,
                     step = RecoveryStep.RESET,
                     notice = "Se houver uma conta com esse CPF e e-mail, enviamos o link de " +
                         "recuperação. Confira a sua caixa de entrada e o spam.",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
@@ -90,14 +92,14 @@ class ForgotPasswordViewModel(private val repo: MemoriaRepository) : ViewModel()
         _state.value = s.copy(working = true, error = null)
         viewModelScope.launch {
             when (val r = repo.resetPassword(s.token, s.newPassword)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(working = false, done = true)
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                is ApiResult.Ok -> _state.update { it.copy(working = false, done = true) }
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
 
-    fun consumeNotice() { _state.value = _state.value.copy(notice = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeNotice() { _state.update { it.copy(notice = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     companion object {
         /** Mirrors `min: 8` on POST /api/auth/reset-password. */

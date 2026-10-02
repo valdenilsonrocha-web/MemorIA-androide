@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.auth
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -45,18 +47,18 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         viewModelScope.launch {
             val remember = repo.credentials.rememberEnabled()
             val saved = if (remember) repo.credentials.load() else null
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 savedCpf = saved?.cpf.orEmpty(),
                 savedPassword = saved?.password.orEmpty(),
                 savedName = saved?.name.orEmpty(),
                 credentialsRestored = true,
                 rememberMe = remember,
-            )
+            ) }
         }
     }
 
     fun setRememberMe(enabled: Boolean) {
-        _state.value = _state.value.copy(rememberMe = enabled)
+        _state.update { it.copy(rememberMe = enabled) }
         // Turning it off wipes what is already stored, so the switch is also the
         // "forget my password" control on this screen.
         viewModelScope.launch { repo.credentials.setRememberEnabled(enabled) }
@@ -67,7 +69,7 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val cpf = _state.value.savedCpf
         val password = _state.value.savedPassword
         if (cpf.isBlank() || password.isBlank()) {
-            _state.value = _state.value.copy(error = "Nenhuma senha salva encontrada. Digite sua senha.")
+            _state.update { it.copy(error = "Nenhuma senha salva encontrada. Digite sua senha.") }
             return
         }
         login(cpf, password, onSuccess)
@@ -83,15 +85,15 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
             password
         }
         if (!validate(cpf, effectivePassword)) return
-        _state.value = _state.value.copy(loading = true, error = null, serverMessage = null)
+        _state.update { it.copy(loading = true, error = null, serverMessage = null) }
         viewModelScope.launch {
             when (val r = repo.login(cpf, effectivePassword)) {
                 is ApiResult.Ok -> {
-                    _state.value = _state.value.copy(loading = false, error = null)
+                    _state.update { it.copy(loading = false, error = null) }
                     onSuccess()
                 }
                 is ApiResult.Err ->
-                    _state.value = _state.value.copy(loading = false, error = r.message)
+                    _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
@@ -109,61 +111,61 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     ) {
         when {
             name.isBlank() -> {
-                _state.value = _state.value.copy(error = "Preencha todos os campos obrigatórios.")
+                _state.update { it.copy(error = "Preencha todos os campos obrigatórios.") }
                 return
             }
             name.trim().length < 3 -> {
-                _state.value = _state.value.copy(error = "O nome deve ter pelo menos 3 caracteres.")
+                _state.update { it.copy(error = "O nome deve ter pelo menos 3 caracteres.") }
                 return
             }
             !lgpdConsent -> {
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     error = "É necessário aceitar os termos de compartilhamento de dados.",
-                )
+                ) }
                 return
             }
             !validate(cpf, password, minPassword = REGISTER_MIN_PASSWORD) -> return
         }
-        _state.value = _state.value.copy(loading = true, error = null, serverMessage = null)
+        _state.update { it.copy(loading = true, error = null, serverMessage = null) }
         viewModelScope.launch {
             when (val r = repo.register(cpf, name, password, email, phone, lgpdConsent, susCard, gender)) {
                 is ApiResult.Ok -> {
-                    _state.value = _state.value.copy(loading = false, error = null)
+                    _state.update { it.copy(loading = false, error = null) }
                     onSuccess()
                 }
                 is ApiResult.Err ->
-                    _state.value = _state.value.copy(loading = false, error = r.message)
+                    _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
 
     fun clearError() {
-        _state.value = _state.value.copy(error = null)
+        _state.update { it.copy(error = null) }
     }
 
     // ---- Server address (reachable before login, on purpose) ----
 
     fun onBaseUrl(value: String) {
-        _state.value = _state.value.copy(baseUrl = value, serverOk = null, serverMessage = null)
+        _state.update { it.copy(baseUrl = value, serverOk = null, serverMessage = null) }
     }
 
     fun saveBaseUrl() {
         val url = _state.value.baseUrl.trim()
         if (url.isBlank()) {
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 serverMessage = "Informe o endereço do servidor.",
                 serverOk = false,
-            )
+            ) }
             return
         }
         viewModelScope.launch {
             repo.setBaseUrl(url)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 baseUrl = repo.currentBaseUrl(),
                 serverMessage = "Servidor salvo.",
                 serverOk = null,
                 error = null,
-            )
+            ) }
         }
     }
 
@@ -171,29 +173,29 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     fun restoreDefaultBaseUrl() {
         viewModelScope.launch {
             repo.resetBaseUrlToDefault()
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 baseUrl = repo.currentBaseUrl(),
                 serverMessage = "Endereço padrão restaurado.",
                 serverOk = null,
                 error = null,
-            )
+            ) }
         }
     }
 
     fun testConnection() {
-        _state.value = _state.value.copy(checking = true, serverOk = null, serverMessage = null)
+        _state.update { it.copy(checking = true, serverOk = null, serverMessage = null) }
         viewModelScope.launch {
             when (val r = repo.checkServer()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     checking = false,
                     serverOk = true,
                     serverMessage = "Servidor acessível.",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(
                     checking = false,
                     serverOk = false,
                     serverMessage = r.message,
-                )
+                ) }
             }
         }
     }
@@ -206,17 +208,17 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
     private fun validate(cpf: String, password: String, minPassword: Int = 1): Boolean {
         val digits = cpf.filter { it.isDigit() }
         if (digits.length != 11) {
-            _state.value = _state.value.copy(error = "CPF deve conter 11 dígitos.")
+            _state.update { it.copy(error = "CPF deve conter 11 dígitos.") }
             return false
         }
         if (password.length < minPassword) {
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 error = if (minPassword > 1) {
                     "A senha deve ter pelo menos $minPassword caracteres."
                 } else {
                     "Informe a sua senha."
                 },
-            )
+            ) }
             return false
         }
         return true

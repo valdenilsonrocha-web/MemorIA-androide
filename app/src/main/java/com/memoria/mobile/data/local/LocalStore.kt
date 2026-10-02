@@ -1,5 +1,6 @@
 package com.memoria.mobile.data.local
 
+import com.memoria.mobile.di.MoshiProvider
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -26,14 +27,16 @@ object ProfileHealthKeys {
 
 class LocalStore(private val prefs: PreferencesStore) {
 
-    private val moshi: Moshi = Moshi.Builder().build()
+    private val moshi: Moshi = MoshiProvider.instance
 
     private fun <T> listAdapter(type: Class<T>): JsonAdapter<List<T>> =
         moshi.adapter(Types.newParameterizedType(List::class.java, type))
 
     private suspend fun <T> read(slot: String, type: Class<T>): List<T> {
         val raw = prefs.string(slot) ?: return emptyList()
-        return runCatching { listAdapter(type).fromJson(raw) }.getOrNull().orEmpty()
+        return runCatching { listAdapter(type).fromJson(raw) }
+            .onFailure { android.util.Log.w("LocalStore", "Falha ao desserializar registro local no slot '$slot'", it) }
+            .getOrNull().orEmpty()
     }
 
     private suspend fun <T> write(slot: String, type: Class<T>, items: List<T>) {

@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.meds
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -42,16 +44,16 @@ class MedicationDetailsViewModel(
     val state: StateFlow<MedicationDetailsUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.medications()) {
                 is ApiResult.Ok -> {
                     val med = r.value.firstOrNull { it.id == medicationId }
                     if (med == null) {
-                        _state.value = _state.value.copy(
+                        _state.update { it.copy(
                             loading = false,
                             error = "❌ Medicamento não encontrado",
-                        )
+                        ) }
                         return@launch
                     }
                     val history = (repo.history(limit = 200) as? ApiResult.Ok)?.value
@@ -65,7 +67,7 @@ class MedicationDetailsViewModel(
                         look = repo.local.medicationLookFor(medicationId),
                     )
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
@@ -76,12 +78,12 @@ class MedicationDetailsViewModel(
                 is ApiResult.Ok -> {
                     repo.local.deleteMedicationLook(medicationId)
                     repo.local.deleteMedicationExtras(medicationId)
-                    _state.value = _state.value.copy(deleted = true)
+                    _state.update { it.copy(deleted = true) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(error = r.message) }
             }
         }
     }
 
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun clearError() { _state.update { it.copy(error = null) } }
 }

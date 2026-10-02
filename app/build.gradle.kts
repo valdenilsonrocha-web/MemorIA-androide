@@ -22,14 +22,14 @@ fun signingValue(property: String, environmentVariable: String): String? =
 
 android {
     namespace = "com.memoria.mobile"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.memoria.mobile"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 6
-        versionName = "5.0"
+        targetSdk = 35
+        versionCode = 7
+        versionName = "5.1"
 
         // Default public backend base URL (no trailing slash, WITHOUT /api — the
         // client appends /api, mirroring the web frontend's runtime-config.js).
@@ -62,7 +62,8 @@ android {
         release {
             // Null when no credentials were supplied — the APK is then unsigned.
             signingConfig = signingConfigs.findByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -117,4 +118,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -283,8 +283,13 @@ private fun EmptyBlock(message: String, icon: @Composable () -> Unit) {
 /** `.prescription-card`: foto, "Arquivo:", "Salva em:" e o botão "Excluir". */
 @Composable
 private fun PrescriptionCard(prescription: Prescription, onDelete: () -> Unit) {
-    // Decoding is keyed on the payload so scrolling does not redo the Base64 work.
-    val bitmap = remember(prescription.imageData) { decodeDataUrl(prescription.imageData) }
+    // Decoding is executed asynchronously on Dispatchers.IO so scrolling does not jank.
+    var bitmap by remember(prescription.imageData) { androidx.compose.runtime.mutableStateOf<Bitmap?>(null) }
+    androidx.compose.runtime.LaunchedEffect(prescription.imageData) {
+        bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            decodeDataUrl(prescription.imageData)
+        }
+    }
     val savedAt = formatFullDateTime(prescription.capturedAt ?: prescription.createdAt) ?: "Data não informada"
 
     // `.prescription-card`: borda 2px `--border-color`, raio 16px, padding 12px,
@@ -297,9 +302,10 @@ private fun PrescriptionCard(prescription: Prescription, onDelete: () -> Unit) {
         border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (bitmap != null) {
+            val bmp = bitmap
+            if (bmp != null) {
                 Image(
-                    bitmap = bitmap.asImageBitmap(),
+                    bitmap = bmp.asImageBitmap(),
                     contentDescription = "Receita médica salva",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

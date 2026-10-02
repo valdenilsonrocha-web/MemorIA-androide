@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.plans
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -133,7 +135,7 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
     private val payerAdapter = Moshi.Builder().build().adapter(InvoicePayer::class.java)
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val savedPayer = repo.local.uiSetting(KEY_PAYER)
                 ?.let { runCatching { payerAdapter.fromJson(it) }.getOrNull() }
@@ -164,48 +166,48 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
         }
     }
 
-    fun select(cycle: BillingCycle) { _state.value = _state.value.copy(selected = cycle) }
+    fun select(cycle: BillingCycle) { _state.update { it.copy(selected = cycle) } }
 
     fun onPayer(update: (InvoicePayer) -> InvoicePayer) {
-        _state.value = _state.value.copy(payer = update(_state.value.payer), error = null)
+        _state.update { it.copy(payer = update(_state.value.payer), error = null) }
     }
 
     // Raw digits only. Formatting happens in the field's VisualTransformation, so
     // the caret never fights the formatter.
     fun onCardNumber(v: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             cardNumber = v.filter { it.isDigit() }.take(19),
             cardNumberError = false,
             error = null,
-        )
+        ) }
     }
 
     fun onHolderName(v: String) {
-        _state.value = _state.value.copy(holderName = v, holderNameError = false, error = null)
+        _state.update { it.copy(holderName = v, holderNameError = false, error = null) }
     }
 
     fun onExpiry(v: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             expiry = v.filter { it.isDigit() }.take(4),
             expiryError = false,
             error = null,
-        )
+        ) }
     }
 
     fun onSecurityCode(v: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             securityCode = v.filter { it.isDigit() }.take(4),
             securityCodeError = false,
             error = null,
-        )
+        ) }
     }
 
     fun onHolderDocument(v: String) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             holderDocument = v.filter { it.isDigit() }.take(11),
             holderDocumentError = false,
             error = null,
-        )
+        ) }
     }
 
     /** The web's `missingInvoiceFields`, in the same order and wording. */
@@ -292,10 +294,10 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
             val last4 = s.cardNumber.takeLast(4)
 
             val token = repo.tokenizeCard(publicKey, card).getOrElse { failure ->
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     working = false,
                     error = failure.message ?: "Erro ao conectar ao gateway de pagamento.",
-                )
+                ) }
                 return@launch
             }
 
@@ -312,53 +314,53 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     repo.local.setUiSetting(KEY_LAST4, last4)
                     repo.local.setUiSetting(KEY_TRIAL_ENDS, trialEnds.toString())
                     val user = (repo.me() as? ApiResult.Ok)?.value
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         working = false,
                         user = user ?: _state.value.user,
                         savedCycle = s.selected.apiValue,
                         savedCardLast4 = last4,
                         savedTrialEndsAtMillis = trialEnds,
                         message = "🎉 Assinatura iniciada! Você está no teste grátis de $trialDays dias.",
-                    )
+                    ) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     working = false,
                     error = r.message,
-                )
+                ) }
             }
         }
     }
 
     fun onUnavailableMethod() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             error = "⚠️ Pix e boleto estarão disponíveis em breve. No momento, use cartão de crédito.",
-        )
+        ) }
     }
 
     fun cancelSubscription() {
-        _state.value = _state.value.copy(working = true, error = null)
+        _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.cancelSubscription()) {
                 is ApiResult.Ok -> {
                     val user = (repo.me() as? ApiResult.Ok)?.value
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         working = false,
                         user = user ?: _state.value.user,
                         message = "Assinatura cancelada.",
-                    )
+                    ) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
 
     private fun clearCardFields() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             cardNumber = "",
             expiry = "",
             securityCode = "",
             holderDocument = "",
-        )
+        ) }
     }
 
     override fun onCleared() {
@@ -366,8 +368,8 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
         super.onCleared()
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     private companion object {
         const val KEY_PAYER = "invoice_payer"

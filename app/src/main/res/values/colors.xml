@@ -7,10 +7,10 @@
     -->
     <color name="ic_launcher_background">#015CFC</color>
     <!-- MemórIA brand palette — main.css :root, azul padronizado com a nova logomarca -->
-    <color name="primary">#0060F8</color>
-    <color name="primary_dark">#003B9A</color>
-    <color name="primary_light">#DBEAFE</color>
-    <color name="secondary">#66A9FF</color>
+    <color name="primary">#0565F1</color>
+    <color name="primary_dark">#0349B2</color>
+    <color name="primary_light">#E6F0FF</color>
+    <color name="secondary">#61A3FF</color>
     <color name="brand_blue_deep">#0053D6</color>
     <color name="brand_blue_bright">#2F7DFF</color>
     <color name="success">#10B981</color>

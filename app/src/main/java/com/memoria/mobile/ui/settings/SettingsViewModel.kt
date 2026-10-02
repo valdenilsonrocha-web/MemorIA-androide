@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.settings
 
+import kotlinx.coroutines.flow.update
+
 import android.app.Application
 import android.media.MediaPlayer
 import android.net.Uri
@@ -101,15 +103,15 @@ class SettingsViewModel(
     private var player: MediaPlayer? = null
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, baseUrl = repo.currentBaseUrl())
+        _state.update { it.copy(loading = true, baseUrl = repo.currentBaseUrl()) }
         viewModelScope.launch {
             loadLocalPreferences()
             when (val r = repo.me()) {
                 is ApiResult.Ok -> applyUser(r.value, markSynced = true)
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     error = r.message,
-                )
+                ) }
             }
         }
     }
@@ -119,7 +121,7 @@ class SettingsViewModel(
      * stay usable even when the server cannot be reached.
      */
     private suspend fun loadLocalPreferences() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             hasSavedCredentials = repo.credentials.hasSaved(),
             hasToken = repo.isLoggedIn(),
             snoozeMinutes = repo.snoozeMinutes(),
@@ -131,7 +133,7 @@ class SettingsViewModel(
             notificationsAllowed = MemoriaNotifications.canPost(app),
             exactAlarmsAllowed = scheduler.canScheduleExact(),
             lastSyncAtMillis = repo.local.uiSetting(KEY_LAST_SYNC)?.toLongOrNull(),
-        )
+        ) }
     }
 
     private suspend fun applyUser(user: User, markSynced: Boolean) {
@@ -140,7 +142,7 @@ class SettingsViewModel(
         if (markSynced) repo.local.setUiSetting(KEY_LAST_SYNC, now.toString())
         // Web: `reportAutomation.contactEmail || currentUser.reportSettings.contactEmail || currentUser.email`.
         val email = report?.contactEmail?.ifBlank { null } ?: user.email
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             loading = false,
             user = user,
             reportEnabled = report?.enabled ?: false,
@@ -150,37 +152,37 @@ class SettingsViewModel(
             lastReportSentAt = report?.lastReportSentAt,
             consentToggle = user.consentDate != null,
             lastSyncAtMillis = if (markSynced) now else _state.value.lastSyncAtMillis,
-        )
+        ) }
         if (user.isPremium) loadVoiceAssistant()
     }
 
     /** Called when the screen comes back from the system permission dialog. */
     fun refreshPermissions() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             notificationsAllowed = MemoriaNotifications.canPost(app),
             exactAlarmsAllowed = scheduler.canScheduleExact(),
-        )
+        ) }
     }
 
     fun onNotificationPermissionResult(granted: Boolean) {
         val allowed = granted || MemoriaNotifications.canPost(app)
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             notificationsAllowed = allowed,
             message = if (allowed) "✅ Notificações ativadas!" else null,
             error = if (allowed) null else "❌ Permissão de notificação negada",
-        )
+        ) }
         if (allowed) viewModelScope.launch { scheduler.reschedule() }
     }
 
     // ---- Lembretes ----
 
     fun setSnoozeMinutes(minutes: Int) {
-        _state.value = _state.value.copy(snoozeMinutes = minutes)
+        _state.update { it.copy(snoozeMinutes = minutes) }
         viewModelScope.launch {
             repo.setSnoozeMinutes(minutes)
             // Pending alarms carry the old snooze in their Intent, so re-arm.
             scheduler.reschedule()
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
@@ -190,11 +192,11 @@ class SettingsViewModel(
      * with, and changing the setting alone would keep the old tone forever.
      */
     fun setReminderSound(sound: ReminderSound) {
-        _state.value = _state.value.copy(reminderSound = sound)
+        _state.update { it.copy(reminderSound = sound) }
         viewModelScope.launch {
             repo.setReminderSound(sound.id)
             scheduler.reschedule()
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
@@ -207,7 +209,7 @@ class SettingsViewModel(
     fun testSound() {
         if (_state.value.soundTesting) return
         val sound = _state.value.reminderSound.takeIf { it in ReminderSound.webOptions } ?: ReminderSound.SYSTEM
-        _state.value = _state.value.copy(soundTesting = true)
+        _state.update { it.copy(soundTesting = true) }
 
         player?.release()
         player = null
@@ -238,58 +240,58 @@ class SettingsViewModel(
         }
         viewModelScope.launch {
             delay(1200)
-            _state.value = _state.value.copy(soundTesting = false)
+            _state.update { it.copy(soundTesting = false) }
         }
     }
 
     fun setLowStockAlerts(enabled: Boolean) {
-        _state.value = _state.value.copy(lowStockAlerts = enabled)
+        _state.update { it.copy(lowStockAlerts = enabled) }
         viewModelScope.launch {
             repo.setLowStockAlertsEnabled(enabled)
             scheduler.reschedule()
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
     fun setThemePreset(preset: String) {
-        _state.value = _state.value.copy(themePreset = preset)
+        _state.update { it.copy(themePreset = preset) }
         viewModelScope.launch {
             repo.setThemePreset(preset)
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
     fun setReportsGuideVariant(variant: String) {
         val v = if (variant == "b") "b" else "a"
-        _state.value = _state.value.copy(reportsGuideVariant = v)
+        _state.update { it.copy(reportsGuideVariant = v) }
         viewModelScope.launch {
             repo.local.setUiSetting(KEY_REPORTS_VARIANT, v)
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
     fun setEmergencyAlertMode(mode: String) {
-        _state.value = _state.value.copy(emergencyAlertMode = mode)
+        _state.update { it.copy(emergencyAlertMode = mode) }
         viewModelScope.launch {
             repo.setEmergencyAlertMode(mode)
-            _state.value = _state.value.copy(message = SAVED)
+            _state.update { it.copy(message = SAVED) }
         }
     }
 
     // ---- Relatório automático por e-mail ----
 
     fun onReportEnabled(enabled: Boolean) {
-        _state.value = _state.value.copy(reportEnabled = enabled)
+        _state.update { it.copy(reportEnabled = enabled) }
         saveReportSettings()
     }
 
     fun onReportFrequency(frequency: String) {
-        _state.value = _state.value.copy(reportFrequency = frequency)
+        _state.update { it.copy(reportFrequency = frequency) }
         saveReportSettings()
     }
 
     fun onReportContactEmail(email: String) {
-        _state.value = _state.value.copy(reportContactEmail = email)
+        _state.update { it.copy(reportContactEmail = email) }
     }
 
     /**
@@ -306,7 +308,7 @@ class SettingsViewModel(
         _state.value = s.copy(reportSavedEmail = email, message = SAVED)
         if (!s.isLoggedIn) return
         if (s.reportEnabled && !isValidEmail(email)) return
-        _state.value = _state.value.copy(reportSaving = true)
+        _state.update { it.copy(reportSaving = true) }
         viewModelScope.launch {
             val request = ProfileUpdateRequest(
                 reportAutoSendEnabled = s.reportEnabled,
@@ -317,12 +319,12 @@ class SettingsViewModel(
                 healthVitalSigns = vitalSignsPayload(),
             )
             when (val r = repo.updateProfile(request)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     reportSaving = false,
                     user = r.value,
                     lastReportSentAt = r.value.reportSettings?.lastReportSentAt ?: _state.value.lastReportSentAt,
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(reportSaving = false)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(reportSaving = false) }
             }
         }
     }
@@ -361,27 +363,27 @@ class SettingsViewModel(
 
     // ---- Privacidade e LGPD ----
 
-    fun onConsentToggle(checked: Boolean) { _state.value = _state.value.copy(consentToggle = checked) }
+    fun onConsentToggle(checked: Boolean) { _state.update { it.copy(consentToggle = checked) } }
 
     fun saveConsent() {
         val consent = _state.value.consentToggle
         if (!_state.value.isLoggedIn) {
-            _state.value = _state.value.copy(error = "⚠️ Faça login para atualizar o consentimento LGPD na nuvem.")
+            _state.update { it.copy(error = "⚠️ Faça login para atualizar o consentimento LGPD na nuvem.") }
             return
         }
-        _state.value = _state.value.copy(consentSaving = true)
+        _state.update { it.copy(consentSaving = true) }
         viewModelScope.launch {
             when (val r = repo.setConsent(consent)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     consentSaving = false,
                     user = r.value,
                     consentToggle = r.value.consentDate != null,
                     message = if (consent) "✅ Consentimento LGPD atualizado." else "✅ Consentimento LGPD revogado.",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(
                     consentSaving = false,
                     error = "❌ Erro ao atualizar consentimento LGPD: ${r.message}",
-                )
+                ) }
             }
         }
     }
@@ -389,10 +391,10 @@ class SettingsViewModel(
     // ---- Assistente de voz (Alexa / Echo Dot) ----
 
     private fun loadVoiceAssistant() {
-        _state.value = _state.value.copy(voiceLoading = true)
+        _state.update { it.copy(voiceLoading = true) }
         viewModelScope.launch {
             when (val r = repo.voiceAssistantConfig()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     voiceLoading = false,
                     voiceEnabled = r.value.enabled,
                     voiceSavedEnabled = r.value.enabled,
@@ -400,18 +402,18 @@ class SettingsViewModel(
                     voiceSavedProvider = r.value.provider,
                     voiceDeviceName = r.value.deviceName,
                     voiceWebhookUrl = r.value.webhookUrl,
-                )
+                ) }
                 // Silent on failure: an account that never set the integration up is
                 // the normal case, and a banner here would read as something broken.
-                is ApiResult.Err -> _state.value = _state.value.copy(voiceLoading = false)
+                is ApiResult.Err -> _state.update { it.copy(voiceLoading = false) }
             }
         }
     }
 
-    fun onVoiceEnabled(enabled: Boolean) { _state.value = _state.value.copy(voiceEnabled = enabled) }
-    fun onVoiceProvider(provider: String) { _state.value = _state.value.copy(voiceProvider = provider) }
-    fun onVoiceDeviceName(name: String) { _state.value = _state.value.copy(voiceDeviceName = name) }
-    fun onVoiceWebhookUrl(url: String) { _state.value = _state.value.copy(voiceWebhookUrl = url) }
+    fun onVoiceEnabled(enabled: Boolean) { _state.update { it.copy(voiceEnabled = enabled) } }
+    fun onVoiceProvider(provider: String) { _state.update { it.copy(voiceProvider = provider) } }
+    fun onVoiceDeviceName(name: String) { _state.update { it.copy(voiceDeviceName = name) } }
+    fun onVoiceWebhookUrl(url: String) { _state.update { it.copy(voiceWebhookUrl = url) } }
 
     /**
      * The web's `saveVoiceAssistantSettings()`: the status line and the toast
@@ -444,7 +446,7 @@ class SettingsViewModel(
                 webhookUrl = webhookUrl,
             )
             repo.setVoiceAssistantConfig(config)
-            _state.value = _state.value.copy(voiceSaving = false)
+            _state.update { it.copy(voiceSaving = false) }
         }
     }
 
@@ -452,19 +454,19 @@ class SettingsViewModel(
 
     /** The web's `syncNowBtn`: "🔄 Sincronizando..." then the sync result. */
     fun syncNow() {
-        _state.value = _state.value.copy(syncing = true, message = "🔄 Sincronizando...")
+        _state.update { it.copy(syncing = true, message = "🔄 Sincronizando...") }
         viewModelScope.launch {
             when (val r = repo.me()) {
                 is ApiResult.Ok -> {
                     applyUser(r.value, markSynced = true)
                     // Re-arms every dose from what the server now says.
                     scheduler.reschedule()
-                    _state.value = _state.value.copy(syncing = false, message = "✅ Dados sincronizados com sucesso!")
+                    _state.update { it.copy(syncing = false, message = "✅ Dados sincronizados com sucesso!") }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     syncing = false,
                     error = "❌ Erro ao sincronizar dados: ${r.message}",
-                )
+                ) }
             }
         }
     }
@@ -472,14 +474,14 @@ class SettingsViewModel(
     // ---- Dados ----
 
     fun requestExport() {
-        _state.value = _state.value.copy(exporting = true)
+        _state.update { it.copy(exporting = true) }
         viewModelScope.launch {
             when (val r = repo.exportData()) {
                 is ApiResult.Ok -> {
-                    _state.value = _state.value.copy(exporting = false)
+                    _state.update { it.copy(exporting = false) }
                     _pendingExport.value = r.value
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(exporting = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(exporting = false, error = r.message) }
             }
         }
     }
@@ -529,37 +531,37 @@ class SettingsViewModel(
             repo.local.setUiSetting(KEY_PROFILE_PHOTO, null)
             scheduler.reschedule()
             loadLocalPreferences()
-            _state.value = _state.value.copy(message = "🗑️ Todos os dados foram apagados")
+            _state.update { it.copy(message = "🗑️ Todos os dados foram apagados") }
         }
     }
 
     // ---- Servidor / acesso ----
 
-    fun onBaseUrl(v: String) { _state.value = _state.value.copy(baseUrl = v) }
+    fun onBaseUrl(v: String) { _state.update { it.copy(baseUrl = v) } }
 
     fun saveBaseUrl() {
         val url = _state.value.baseUrl.trim()
-        if (url.isBlank()) { _state.value = _state.value.copy(error = "Informe a URL do servidor."); return }
+        if (url.isBlank()) { _state.update { it.copy(error = "Informe a URL do servidor.") }; return }
         viewModelScope.launch {
             repo.setBaseUrl(url)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 baseUrl = repo.currentBaseUrl(),
                 message = "Servidor atualizado.",
                 reachable = null,
-            )
+            ) }
         }
     }
 
     fun testConnection() {
-        _state.value = _state.value.copy(checking = true, reachable = null)
+        _state.update { it.copy(checking = true, reachable = null) }
         viewModelScope.launch {
             // checkServer() carries the reason, so a failure names its cause
             // instead of only turning the indicator red.
             when (val r = repo.checkServer()) {
                 is ApiResult.Ok ->
-                    _state.value = _state.value.copy(checking = false, reachable = true)
+                    _state.update { it.copy(checking = false, reachable = true) }
                 is ApiResult.Err ->
-                    _state.value = _state.value.copy(checking = false, reachable = false, error = r.message)
+                    _state.update { it.copy(checking = false, reachable = false, error = r.message) }
             }
         }
     }
@@ -568,10 +570,10 @@ class SettingsViewModel(
     fun forgetCredentials() {
         viewModelScope.launch {
             repo.forgetCredentials()
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 hasSavedCredentials = false,
                 message = "CPF e senha esquecidos neste celular.",
-            )
+            ) }
         }
     }
 
@@ -582,8 +584,8 @@ class SettingsViewModel(
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     override fun onCleared() {
         player?.release()

@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.replenishment
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -64,7 +66,7 @@ class ReplenishmentViewModel(private val repo: MemoriaRepository) : ViewModel() 
     val state: StateFlow<ReplenishmentUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.medications()) {
                 is ApiResult.Ok -> {
@@ -78,7 +80,7 @@ class ReplenishmentViewModel(private val repo: MemoriaRepository) : ViewModel() 
                             .sortedByDescending { it.continuousUse },
                     )
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }

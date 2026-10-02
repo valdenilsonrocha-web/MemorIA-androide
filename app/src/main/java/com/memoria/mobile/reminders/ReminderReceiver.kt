@@ -1,8 +1,11 @@
 package com.memoria.mobile.reminders
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import com.memoria.mobile.MemoriaApp
@@ -48,6 +51,7 @@ class ReminderReceiver : BroadcastReceiver() {
             ACTION_TAKEN -> answer(context, app, dose, status = "taken")
             ACTION_MISSED -> answer(context, app, dose, status = "missed")
             ACTION_SNOOZE -> snooze(context, app, dose)
+            ACTION_SILENCE -> MemoriaNotifications.silenceDose(context, dose)
         }
     }
 
@@ -95,6 +99,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     dose.requestCode,
                     MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
                 )
+            scheduleSilence(context, dose)
         } else {
             Log.w(TAG, "Sem permissão de notificação; lembrete de ${dose.medicationName} não mostrado")
         }
@@ -102,8 +107,51 @@ class ReminderReceiver : BroadcastReceiver() {
         background(this) { app.graph.reminderScheduler.reschedule() }
     }
 
+    /**
+     * The web rings for one minute (`medicationAlarmDurationMs`), then stops.
+     * The notification itself is insistent, so an alarm at +60 s swaps it for a
+     * silent copy if nobody has answered by then.
+     */
+    private fun scheduleSilence(context: Context, dose: DoseAlarm) {
+        val manager = context.getSystemService(AlarmManager::class.java) ?: return
+        val at = System.currentTimeMillis() + ALARM_DURATION_MS
+        val pending = silencePendingIntent(context, dose)
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager.canScheduleExactAlarms()) {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
+            } else {
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
+            }
+        } catch (e: SecurityException) {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending)
+        }
+    }
+
+    /**
+     * Ends everything still ringing for this dose: the pending one-minute
+     * cut-off, and the full-screen alert if it is open behind the notification
+     * the user just answered (it plays its own looping sound).
+     */
+    private fun stopRinging(context: Context, dose: DoseAlarm) {
+        context.getSystemService(AlarmManager::class.java)?.cancel(silencePendingIntent(context, dose))
+        context.sendBroadcast(
+            Intent(ACTION_DOSE_ANSWERED)
+                .setPackage(context.packageName)
+                .putExtra(EXTRA_REQUEST_CODE, dose.requestCode),
+        )
+    }
+
+    private fun silencePendingIntent(context: Context, dose: DoseAlarm): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            dose.requestCode,
+            intentFor(context, ACTION_SILENCE, dose),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
     private fun answer(context: Context, app: MemoriaApp, dose: DoseAlarm, status: String) {
         NotificationManagerCompat.from(context).cancel(dose.requestCode)
+        stopRinging(context, dose)
         val request = HistoryRequest(
             medicationId = dose.medicationId,
             medicationName = dose.medicationName,
@@ -144,6 +192,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private fun snooze(context: Context, app: MemoriaApp, dose: DoseAlarm) {
         NotificationManagerCompat.from(context).cancel(dose.requestCode)
+        stopRinging(context, dose)
         app.graph.reminderScheduler.snooze(dose)
         Log.i(TAG, "Dose de ${dose.medicationName} adiada ${dose.snoozeMinutes} min")
     }
@@ -177,6 +226,14 @@ class ReminderReceiver : BroadcastReceiver() {
         const val ACTION_SNOOZE = "com.memoria.mobile.REMINDER_SNOOZE"
         const val ACTION_CONSULTATION = "com.memoria.mobile.CONSULTATION_FIRE"
         const val ACTION_STOCK = "com.memoria.mobile.STOCK_FIRE"
+        const val ACTION_SILENCE = "com.memoria.mobile.REMINDER_SILENCE"
+
+        /** Sent (package-local) when a dose is answered, so an open full-screen alert closes. */
+        const val ACTION_DOSE_ANSWERED = "com.memoria.mobile.DOSE_ANSWERED"
+        const val EXTRA_REQUEST_CODE = "com.memoria.mobile.extra.REQUEST_CODE"
+
+        /** `medicationAlarmDurationMs` on the web: the alarm rings for one minute. */
+        const val ALARM_DURATION_MS = 60_000L
 
         fun intentFor(context: Context, action: String, dose: DoseAlarm): Intent =
             dose.writeTo(Intent(context, ReminderReceiver::class.java).setAction(action))

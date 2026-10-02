@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.admin
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -22,11 +24,11 @@ class AdminViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<AdminUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.ownerStats()) {
                 is ApiResult.Ok -> _state.value = AdminUiState(loading = false, stats = r.value)
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }

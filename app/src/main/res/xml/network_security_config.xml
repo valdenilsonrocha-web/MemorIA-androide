@@ -1,14 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  HTTPS is enforced everywhere by default. Cleartext is allowed ONLY for local
-  development backends (the Android emulator reaches the host machine's
-  localhost via 10.0.2.2). Production traffic stays TLS-only.
+  HTTPS-only everywhere in release builds.  Cleartext is allowed ONLY for the
+  Android-emulator loopback addresses used during local development, AND only
+  when the build is debuggable (debug-overrides covers that automatically).
+
+  The domain-config adds public-key pins for the production backend so the
+  app rejects connections even if a rogue CA is installed on the device.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
+
+    <!-- Local dev only: the emulator's host-loopback addresses. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+
+    <!--
+      Debug builds additionally trust user-installed CAs (e.g. Charles Proxy)
+      so developers can inspect traffic without touching the release config.
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
 </network-security-config>

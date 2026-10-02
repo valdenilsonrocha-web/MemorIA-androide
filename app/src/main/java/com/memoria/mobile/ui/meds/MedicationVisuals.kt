@@ -104,11 +104,19 @@ val MED_FORM_DEFS: List<MedFormDef> = listOf(
     MedFormDef("supositorio", "Supositório", hasColor = true, hasShape = false, svg = listOf(
         SvgEl("M16 4L24 14v16a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V14Z"),
     )),
-    MedFormDef("injecao", "Injeção", hasColor = false, hasShape = false, svg = listOf(
-        SvgEl(line(8f, 28f, 26f, 10f), strokeWidth = 2.2f),
-        SvgEl("M20 10L26 10L26 16", strokeWidth = 2.2f),
-        SvgEl(rect(16f, 12f, 7f, 5f, 1f), strokeWidth = 2.2f, rotate = Triple(45f, 19.5f, 14.5f)),
-        SvgEl(line(5f, 31f, 9f, 27f), strokeWidth = 3f),
+    MedFormDef("injecao", "Injeção", hasColor = true, hasShape = false, svg = listOf(
+        // Agulha fina chanfrada
+        SvgEl(line(3f, 29f, 9f, 23f), strokeWidth = 1.8f),
+        // Corpo cilíndrico graduado da seringa
+        SvgEl(rect(9f, 9f, 13f, 8f, 1.2f), strokeWidth = 2f, rotate = Triple(45f, 15.5f, 13f)),
+        // Graduações da escala de medição da seringa
+        SvgEl(line(12f, 17f, 14.5f, 14.5f), strokeWidth = 1.4f),
+        SvgEl(line(14f, 19f, 16.5f, 16.5f), strokeWidth = 1.4f),
+        SvgEl(line(16f, 21f, 18.5f, 18.5f), strokeWidth = 1.4f),
+        // Haste do êmbolo
+        SvgEl(line(20f, 11f, 25f, 6f), strokeWidth = 2.2f),
+        // Flange / anel de apoio do êmbolo
+        SvgEl(line(23f, 4f, 27f, 8f), strokeWidth = 2.5f),
     )),
     MedFormDef("creme", "Creme", hasColor = true, hasShape = false, svg = listOf(
         SvgEl(ellipse(16f, 28f, 10f, 3.5f)), SvgEl(rect(8f, 16f, 16f, 14f, 4f)), SvgEl("M12 16Q16 8 20 16"),

@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.prescriptions
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -34,20 +36,20 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
     val state: StateFlow<PrescriptionsUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val user = (repo.me() as? ApiResult.Ok)?.value
             when (val r = repo.prescriptions()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     loading = false,
                     user = user,
                     prescriptions = r.value,
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     user = user,
                     error = r.message,
-                )
+                ) }
             }
         }
     }
@@ -58,13 +60,13 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
      */
     fun uploadEncoded(fileName: String? = null, encode: () -> String?) {
         if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
-            _state.value = _state.value.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.")
+            _state.update { it.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.") }
             return
         }
-        _state.value = _state.value.copy(uploading = true)
+        _state.update { it.copy(uploading = true) }
         viewModelScope.launch {
             val data = withContext(Dispatchers.Default) { runCatching(encode).getOrNull() }
-            _state.value = _state.value.copy(uploading = false)
+            _state.update { it.copy(uploading = false) }
             upload(data, fileName)
         }
     }
@@ -74,16 +76,16 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         // Paid feature, same as on the website, and the backend does not gate it
         // — without this check the phone gave away what the site charges for.
         if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
-            _state.value = _state.value.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.")
+            _state.update { it.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.") }
             return
         }
         if (imageData == null) {
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 error = "❌ Não foi possível processar a imagem da receita.",
-            )
+            ) }
             return
         }
-        _state.value = _state.value.copy(uploading = true)
+        _state.update { it.copy(uploading = true) }
         val request = PrescriptionRequest(
             // `file.name || 'receita.jpg'` na web: o nome do ficheiro escolhido.
             fileName = fileName?.takeIf { it.isNotBlank() } ?: "receita-${System.currentTimeMillis()}.jpg",
@@ -93,14 +95,14 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         viewModelScope.launch {
             when (val r = repo.createPrescription(request)) {
                 is ApiResult.Ok -> {
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         uploading = false,
                         prescriptions = listOf(r.value) + _state.value.prescriptions,
                         message = "✅ Receita salva no histórico premium.",
-                    )
+                    ) }
                 }
                 is ApiResult.Err ->
-                    _state.value = _state.value.copy(uploading = false, error = r.message)
+                    _state.update { it.copy(uploading = false, error = r.message) }
             }
         }
     }
@@ -109,15 +111,15 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         val id = prescription.id ?: return
         viewModelScope.launch {
             when (val r = repo.deletePrescription(id)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     prescriptions = _state.value.prescriptions.filterNot { it.id == id },
                     message = "🗑️ Receita removida do histórico.",
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(error = r.message) }
             }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 }

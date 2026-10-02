@@ -59,6 +59,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.reminders.DoseAlarm
 import com.memoria.mobile.reminders.ReminderReceiver
 import com.memoria.mobile.reminders.ReminderTexts
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.media.Ringtone
+import androidx.core.content.ContextCompat
+import com.memoria.mobile.reminders.MemoriaNotifications
+import android.media.RingtoneManager
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.memoria.mobile.data.local.MedicationLook
+import com.memoria.mobile.ui.meds.MedicationIcon
 import com.memoria.mobile.ui.theme.MemoriaTheme
 import com.memoria.mobile.ui.theme.SurfaceLight
 import com.memoria.mobile.ui.theme.TextPrimary
@@ -76,6 +92,15 @@ import com.memoria.mobile.ui.theme.TextSecondary
  */
 class ReminderAlertActivity : ComponentActivity() {
 
+    private var ringtone: Ringtone? = null
+    private var vibrator: Vibrator? = null
+    private val stopHandler = Handler(Looper.getMainLooper())
+    private val stopRunnable = Runnable { stopAlert() }
+
+    // Fecha este ecrã quando a dose é respondida pelos botões da notificação:
+    // sem isto o som em loop daqui continuava até ao fim do minuto.
+    private var answeredReceiver: BroadcastReceiver? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         showOverLockScreen()
@@ -88,15 +113,32 @@ class ReminderAlertActivity : ComponentActivity() {
         }
         val reminder = ReminderTexts.randomMedication(dose.time)
 
+        // Inicia áudio e vibração urgente por até 1 minuto
+        startUrgentAlert(dose)
+        // Este ecrã toca o seu próprio som; a notificação por trás fica em silêncio
+        // para não tocarem os dois ao mesmo tempo.
+        MemoriaNotifications.silenceDose(this, dose)
+        listenForAnswer(dose)
+
         setContent {
-            val preset by (application as MemoriaApp).graph.repository.themePresetFlow
+            val app = application as MemoriaApp
+            val preset by app.graph.repository.themePresetFlow
                 .collectAsStateWithLifecycle(initialValue = null)
+            var medicationLook by remember { mutableStateOf<MedicationLook?>(null) }
+
+            LaunchedEffect(dose.medicationId) {
+                medicationLook = runCatching {
+                    app.graph.repository.local.medicationLookFor(dose.medicationId)
+                }.getOrNull()
+            }
+
             MemoriaTheme(themePreset = preset) {
                 ReminderModal(
                     title = reminder.title,
                     body = reminder.body,
                     medication = "${dose.medicationName} - ${dose.dosage}",
                     instructions = dose.instructions?.takeIf { it.isNotBlank() },
+                    look = medicationLook,
                     onSnooze = { answer(dose, ReminderReceiver.ACTION_SNOOZE) },
                     onTaken = { answer(dose, ReminderReceiver.ACTION_TAKEN) },
                 )
@@ -105,8 +147,79 @@ class ReminderAlertActivity : ComponentActivity() {
     }
 
     private fun answer(dose: DoseAlarm, action: String) {
+        stopAlert()
         sendBroadcast(ReminderReceiver.intentFor(this, action, dose))
         finish()
+    }
+
+    private fun listenForAnswer(dose: DoseAlarm) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.getIntExtra(ReminderReceiver.EXTRA_REQUEST_CODE, -1) == dose.requestCode) {
+                    stopAlert()
+                    finish()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            IntentFilter(ReminderReceiver.ACTION_DOSE_ANSWERED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        answeredReceiver = receiver
+    }
+
+    override fun onDestroy() {
+        answeredReceiver?.let { runCatching { unregisterReceiver(it) } }
+        answeredReceiver = null
+        stopAlert()
+        super.onDestroy()
+    }
+
+    private fun startUrgentAlert(dose: DoseAlarm) {
+        try {
+            val soundUri = dose.sound.soundUri
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            ringtone = RingtoneManager.getRingtone(this, soundUri)?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
+            }
+        } catch (_: Exception) {}
+
+        try {
+            vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            // Padrão urgente: pulsações repetidas
+            val urgentPattern = longArrayOf(0, 400, 200, 400, 200, 600)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator?.vibrate(VibrationEffect.createWaveform(urgentPattern, 0))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(urgentPattern, 0)
+            }
+        } catch (_: Exception) {}
+
+        // Limita o toque e vibração a 1 minuto (60.000 ms)
+        stopHandler.postDelayed(stopRunnable, ReminderReceiver.ALARM_DURATION_MS)
+    }
+
+    private fun stopAlert() {
+        try {
+            stopHandler.removeCallbacks(stopRunnable)
+            ringtone?.stop()
+            ringtone = null
+            vibrator?.cancel()
+            vibrator = null
+        } catch (_: Exception) {}
     }
 
     private fun showOverLockScreen() {
@@ -148,6 +261,7 @@ private fun ReminderModal(
     body: String,
     medication: String,
     instructions: String?,
+    look: MedicationLook?,
     onSnooze: () -> Unit,
     onTaken: () -> Unit,
 ) {
@@ -212,7 +326,11 @@ private fun ReminderModal(
                         color = TextSecondary,
                         textAlign = TextAlign.Center,
                     )
-                    ModalMark(R.drawable.ic_menu_medications, round = true)
+                    if (look != null) {
+                        MedicationIcon(look = look, size = 56.dp)
+                    } else {
+                        ModalMark(R.drawable.ic_menu_medications, round = true)
+                    }
                 }
                 Spacer(Modifier.size(20.dp))
                 // .modal-medication-dosage

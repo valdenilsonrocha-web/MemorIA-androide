@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.doctors
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.MemoriaRepository
@@ -54,39 +56,39 @@ class MyDoctorsViewModel(
 
     fun load() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 loading = false,
                 contacts = repo.local.careContacts(),
                 consultations = repo.local.consultations(),
-            )
+            ) }
         }
     }
 
     // ---- Contact form ----
 
-    fun onContactType(v: String) { _state.value = _state.value.copy(contactType = v) }
-    fun onContactName(v: String) { _state.value = _state.value.copy(contactName = v) }
-    fun onContactInfo(v: String) { _state.value = _state.value.copy(contactInfo = v) }
-    fun onContactNotes(v: String) { _state.value = _state.value.copy(contactNotes = v) }
+    fun onContactType(v: String) { _state.update { it.copy(contactType = v) } }
+    fun onContactName(v: String) { _state.update { it.copy(contactName = v) } }
+    fun onContactInfo(v: String) { _state.update { it.copy(contactInfo = v) } }
+    fun onContactNotes(v: String) { _state.update { it.copy(contactNotes = v) } }
 
     fun clearContactForm() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             contactType = "medico",
             contactName = "",
             contactInfo = "",
             contactNotes = "",
             editingContactId = null,
-        )
+        ) }
     }
 
     fun editContact(contact: CareContact) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             contactType = contact.type,
             contactName = contact.name,
             contactInfo = contact.info,
             contactNotes = contact.notes,
             editingContactId = contact.id,
-        )
+        ) }
     }
 
     fun saveContact() {
@@ -109,7 +111,7 @@ class MyDoctorsViewModel(
         }
         viewModelScope.launch {
             repo.local.saveCareContacts(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 contacts = updated,
                 contactType = "medico",
                 contactName = "",
@@ -117,7 +119,7 @@ class MyDoctorsViewModel(
                 contactNotes = "",
                 editingContactId = null,
                 message = "✅ Contato salvo com sucesso.",
-            )
+            ) }
         }
     }
 
@@ -125,7 +127,7 @@ class MyDoctorsViewModel(
         val updated = _state.value.contacts.filterNot { it.id == contact.id }
         viewModelScope.launch {
             repo.local.saveCareContacts(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 contacts = updated,
                 contactType = "medico",
                 contactName = "",
@@ -133,7 +135,7 @@ class MyDoctorsViewModel(
                 contactNotes = "",
                 editingContactId = null,
                 message = "🗑️ Contato removido.",
-            )
+            ) }
         }
     }
 
@@ -155,29 +157,29 @@ class MyDoctorsViewModel(
 
     // ---- Consultation form ----
 
-    fun onConsultationDateTime(v: String) { _state.value = _state.value.copy(consultationDateTime = v) }
-    fun onConsultationProfessional(v: String) { _state.value = _state.value.copy(consultationProfessional = v) }
-    fun onConsultationLocation(v: String) { _state.value = _state.value.copy(consultationLocation = v) }
-    fun onConsultationNotes(v: String) { _state.value = _state.value.copy(consultationNotes = v) }
+    fun onConsultationDateTime(v: String) { _state.update { it.copy(consultationDateTime = v) } }
+    fun onConsultationProfessional(v: String) { _state.update { it.copy(consultationProfessional = v) } }
+    fun onConsultationLocation(v: String) { _state.update { it.copy(consultationLocation = v) } }
+    fun onConsultationNotes(v: String) { _state.update { it.copy(consultationNotes = v) } }
 
     fun clearConsultationForm() {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             consultationDateTime = "",
             consultationProfessional = "",
             consultationLocation = "",
             consultationNotes = "",
             editingConsultationId = null,
-        )
+        ) }
     }
 
     fun editConsultation(consultation: MedicalConsultation) {
-        _state.value = _state.value.copy(
+        _state.update { it.copy(
             consultationDateTime = consultation.dateTime,
             consultationProfessional = consultation.professional,
             consultationLocation = consultation.location,
             consultationNotes = consultation.notes,
             editingConsultationId = consultation.id,
-        )
+        ) }
     }
 
     fun saveConsultation() {
@@ -203,7 +205,7 @@ class MyDoctorsViewModel(
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
             pushConsultations(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 consultations = updated,
                 consultationDateTime = "",
                 consultationProfessional = "",
@@ -211,7 +213,7 @@ class MyDoctorsViewModel(
                 consultationNotes = "",
                 editingConsultationId = null,
                 message = "✅ Consulta salva com sucesso.",
-            )
+            ) }
         }
     }
 
@@ -220,7 +222,7 @@ class MyDoctorsViewModel(
         viewModelScope.launch {
             repo.local.saveConsultations(updated)
             pushConsultations(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 consultations = updated,
                 consultationDateTime = "",
                 consultationProfessional = "",
@@ -228,7 +230,7 @@ class MyDoctorsViewModel(
                 consultationNotes = "",
                 editingConsultationId = null,
                 message = "🗑️ Consulta removida.",
-            )
+            ) }
         }
     }
 
@@ -276,6 +278,6 @@ class MyDoctorsViewModel(
             .format(java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME)
     }.getOrDefault(raw)
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 }

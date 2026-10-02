@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.auth
 
+import kotlinx.coroutines.flow.update
+
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -92,26 +94,26 @@ class OnboardingViewModel(
             val current = repo.reminderSound()
             val sound = OnboardingSound.entries.firstOrNull { it.webId == current }
                 ?: if (current == "soft") OnboardingSound.GENTLE else OnboardingSound.DEFAULT
-            _state.value = _state.value.copy(sound = sound)
+            _state.update { it.copy(sound = sound) }
             val user = (repo.me() as? ApiResult.Ok)?.value
             accountName = user?.name.orEmpty().trim()
             if (_state.value.name.isBlank() && accountName.isNotBlank()) {
-                _state.value = _state.value.copy(name = accountName)
+                _state.update { it.copy(name = accountName) }
             }
         }
     }
 
-    fun onName(value: String) { _state.value = _state.value.copy(name = value.take(80)) }
+    fun onName(value: String) { _state.update { it.copy(name = value.take(80)) } }
 
     fun onBirthYear(value: String) {
-        _state.value = _state.value.copy(birthYear = value.filter { it.isDigit() }.take(4))
+        _state.update { it.copy(birthYear = value.filter { it.isDigit() }.take(4)) }
     }
 
-    fun onAlertType(value: String) { _state.value = _state.value.copy(alertType = value) }
+    fun onAlertType(value: String) { _state.update { it.copy(alertType = value) } }
 
-    fun onSound(value: OnboardingSound) { _state.value = _state.value.copy(sound = value) }
+    fun onSound(value: OnboardingSound) { _state.update { it.copy(sound = value) } }
 
-    fun consumeToast() { _state.value = _state.value.copy(toast = null) }
+    fun consumeToast() { _state.update { it.copy(toast = null) } }
 
     fun back() {
         val s = _state.value
@@ -155,11 +157,11 @@ class OnboardingViewModel(
                 // Best effort: offline, the name simply stays as it was on the account.
                 runCatching { repo.updateProfile(ProfileUpdateRequest(name = name)) }
             }
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 saving = false,
                 finished = true,
                 toast = "✅ Configuração inicial concluída!",
-            )
+            ) }
         }
     }
 

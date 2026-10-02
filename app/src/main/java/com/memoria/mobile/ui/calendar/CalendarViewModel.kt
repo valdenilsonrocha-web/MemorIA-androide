@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.calendar
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -39,41 +41,41 @@ class CalendarViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<CalendarUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val consultations = runCatching { repo.local.consultations() }.getOrDefault(emptyList())
             val looks = repo.local.medicationLooks().associateBy { it.medicationId }
             when (val r = repo.history(limit = 400)) {
                 is ApiResult.Ok -> {
                     val meds = (repo.medications() as? ApiResult.Ok)?.value.orEmpty()
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         loading = false,
                         medications = meds,
                         history = r.value + com.memoria.mobile.reminders.DoseActions.pendingHistory(repo),
                         consultations = consultations,
                         looks = looks,
-                    )
+                    ) }
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     error = r.message,
                     consultations = consultations,
                     looks = looks,
-                )
+                ) }
             }
         }
     }
 
     fun previousMonth() {
-        _state.value = _state.value.copy(month = _state.value.month.minusMonths(1))
+        _state.update { it.copy(month = _state.value.month.minusMonths(1)) }
     }
 
     fun nextMonth() {
-        _state.value = _state.value.copy(month = _state.value.month.plusMonths(1))
+        _state.update { it.copy(month = _state.value.month.plusMonths(1)) }
     }
 
     fun selectDay(day: LocalDate) {
-        _state.value = _state.value.copy(selectedDay = day)
+        _state.update { it.copy(selectedDay = day) }
     }
 
     /** History entries recorded on [day] (the web's `entry.timestamp`). */

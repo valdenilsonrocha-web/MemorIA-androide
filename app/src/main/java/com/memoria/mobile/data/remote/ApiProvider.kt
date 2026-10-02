@@ -1,6 +1,7 @@
 package com.memoria.mobile.data.remote
 
 import com.memoria.mobile.BuildConfig
+import com.memoria.mobile.di.MoshiProvider
 import com.squareup.moshi.Moshi
 import okhttp3.Dns
 import okhttp3.Interceptor
@@ -83,7 +84,7 @@ internal class WildcardDnsFallback(private val delegate: Dns = Dns.SYSTEM) : Dns
  */
 class ApiProvider(private val session: SessionState) {
 
-    private val moshi: Moshi = Moshi.Builder().build()
+    private val moshi: Moshi = MoshiProvider.instance
 
     private var cachedRoot: String? = null
     private var cachedService: ApiService? = null

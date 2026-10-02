@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.home
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.ApiResult
@@ -60,7 +62,7 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<DashboardUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val medsResult = repo.medications()
             DoseActions.flushPending(repo)
@@ -97,7 +99,7 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     )
                 }
                 is ApiResult.Err ->
-                    _state.value = _state.value.copy(loading = false, error = medsResult.message)
+                    _state.update { it.copy(loading = false, error = medsResult.message) }
             }
         }
     }
@@ -114,10 +116,10 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 time = slot.time,
             )
             if (r is ApiResult.Ok) {
-                _state.value = _state.value.copy(message = "✅ Medicamento registrado como tomado!")
+                _state.update { it.copy(message = "✅ Medicamento registrado como tomado!") }
                 load()
             } else {
-                _state.value = _state.value.copy(message = "❌ Erro ao registrar medicamento.")
+                _state.update { it.copy(message = "❌ Erro ao registrar medicamento.") }
             }
         }
     }
@@ -144,7 +146,7 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
                     )
                 )
             }
-            _state.value = _state.value.copy(message = "⏰ Alarme adiado por $minutes minutos")
+            _state.update { it.copy(message = "⏰ Alarme adiado por $minutes minutos") }
         }
     }
 
@@ -156,24 +158,24 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 is ApiResult.Ok -> {
                     repo.local.deleteMedicationLook(id)
                     repo.local.deleteMedicationExtras(id)
-                    _state.value = _state.value.copy(message = "🗑️ Medicamento excluído")
+                    _state.update { it.copy(message = "🗑️ Medicamento excluído") }
                     load()
                 }
-                is ApiResult.Err -> _state.value = _state.value.copy(message = "❌ Erro ao excluir medicamento")
+                is ApiResult.Err -> _state.update { it.copy(message = "❌ Erro ao excluir medicamento") }
             }
         }
     }
 
     /** "✕" on the daily Premium card: hidden until tomorrow. */
     fun dismissUpsell() {
-        _state.value = _state.value.copy(upsellDismissedToday = true)
+        _state.update { it.copy(upsellDismissedToday = true) }
         viewModelScope.launch {
             runCatching { repo.local.setUiSetting(UPSELL_KEY, LocalDate.now().toString()) }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     private fun streak(history: List<HistoryEntry>): Int {
         val zone = ZoneId.systemDefault()

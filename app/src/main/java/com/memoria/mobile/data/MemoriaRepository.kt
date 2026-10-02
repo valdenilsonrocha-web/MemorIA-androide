@@ -694,7 +694,7 @@ class MemoriaRepository(
         /** The web's `settings.notificationSound || 'system'`. */
         const val DEFAULT_SOUND = "system"
 
-        /** Same default the web app applies (`settings.themePreset`). */
+        /** Standard brand blue default (`BluePrimary` #0060F8). */
         const val DEFAULT_THEME_PRESET = "pastel-azul"
     }
 

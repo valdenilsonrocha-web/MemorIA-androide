@@ -162,8 +162,10 @@ private fun MainFlow(onLogout: () -> Unit) {
     // every page change so a photo taken in "Meu Perfil" is there on the way out.
     var photoPath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(currentRoute) {
-        photoPath = runCatching { repo.local.uiSetting(PROFILE_PHOTO_KEY) }.getOrNull()
-            ?.takeIf { it.isNotBlank() && File(it).exists() }
+        photoPath = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { repo.local.uiSetting(PROFILE_PHOTO_KEY) }.getOrNull()
+                ?.takeIf { it.isNotBlank() && File(it).exists() }
+        }
     }
 
     // "Mais" is a sheet over the current page on the web, not a page of its own.

@@ -127,6 +127,12 @@ object MemoriaNotifications {
         context: Context,
         dose: DoseAlarm,
         sound: ReminderSound = ReminderSound.SYSTEM,
+        /**
+         * Same notification, but quiet: it stays in the drawer with its buttons
+         * and stops ringing. Used once the web's one-minute alarm is over, and
+         * while the full-screen alert is the one playing the sound.
+         */
+        silenced: Boolean = false,
     ): Notification {
         val open = PendingIntent.getActivity(
             context,
@@ -173,8 +179,40 @@ object MemoriaNotifications {
                 "Tomei",
                 actionIntent(context, ReminderReceiver.ACTION_TAKEN, dose),
             )
-            .also { builder -> applyFullScreen(context, builder, dose) }
+            .also { builder ->
+                if (silenced) {
+                    builder.setSilent(true).setOnlyAlertOnce(true)
+                } else {
+                    applyFullScreen(context, builder, dose)
+                }
+            }
             .build()
+            .apply {
+                // Alerta urgente: repete o toque até resposta — mas só durante o
+                // minuto da web (`medicationAlarmDurationMs`). Ao fim dele o
+                // ReminderReceiver troca-a por esta mesma notificação em silêncio.
+                if (!silenced) flags = flags or Notification.FLAG_INSISTENT
+            }
+    }
+
+    /**
+     * Stops a dose notification from ringing while keeping it (and its Soneca /
+     * Tomei buttons) on screen. Does nothing once the dose has been answered: an
+     * answered notification is already gone and must not come back.
+     *
+     * The notification is cancelled before being re-posted because updating an
+     * insistent notification in place does not reliably stop the looping sound.
+     */
+    fun silenceDose(context: Context, dose: DoseAlarm) {
+        if (!canPost(context)) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val active = runCatching {
+            manager.activeNotifications.any { it.id == dose.requestCode }
+        }.getOrDefault(false)
+        if (!active) return
+        val compat = NotificationManagerCompat.from(context)
+        compat.cancel(dose.requestCode)
+        compat.notify(dose.requestCode, buildDoseNotification(context, dose, dose.sound, silenced = true))
     }
 
     /**

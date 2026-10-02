@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.health
 
+import kotlinx.coroutines.flow.update
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.memoria.mobile.data.MemoriaRepository
@@ -101,26 +103,26 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
             // depois é o formulário que manda.
             if (!seeded) {
                 seeded = true
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     height = s.height.ifBlank { profileHeight.orEmpty() },
                     sex = if (profileSex != "not_informed") profileSex else "auto",
                     careLevel = s.careLevel ?: safety.firstOrNull { it.careLevel != null }?.careLevel,
-                )
+                ) }
             }
         }
     }
 
     // ---- Vital signs ----
 
-    fun onMeasurementAt(v: String) { _state.value = _state.value.copy(measurementAt = v) }
-    fun onSystolic(v: String) { _state.value = _state.value.copy(systolic = v) }
-    fun onDiastolic(v: String) { _state.value = _state.value.copy(diastolic = v) }
-    fun onHeartRate(v: String) { _state.value = _state.value.copy(heartRate = v) }
-    fun onSpo2(v: String) { _state.value = _state.value.copy(spo2 = v) }
-    fun onGlucose(v: String) { _state.value = _state.value.copy(glucose = v) }
-    fun onGlucoseContext(v: String) { _state.value = _state.value.copy(glucoseContext = v) }
-    fun onHba1c(v: String) { _state.value = _state.value.copy(hba1c = v) }
-    fun onTemperature(v: String) { _state.value = _state.value.copy(temperature = v) }
+    fun onMeasurementAt(v: String) { _state.update { it.copy(measurementAt = v) } }
+    fun onSystolic(v: String) { _state.update { it.copy(systolic = v) } }
+    fun onDiastolic(v: String) { _state.update { it.copy(diastolic = v) } }
+    fun onHeartRate(v: String) { _state.update { it.copy(heartRate = v) } }
+    fun onSpo2(v: String) { _state.update { it.copy(spo2 = v) } }
+    fun onGlucose(v: String) { _state.update { it.copy(glucose = v) } }
+    fun onGlucoseContext(v: String) { _state.update { it.copy(glucoseContext = v) } }
+    fun onHba1c(v: String) { _state.update { it.copy(hba1c = v) } }
+    fun onTemperature(v: String) { _state.update { it.copy(temperature = v) } }
 
     fun saveVitalSigns() {
         val s = _state.value
@@ -148,26 +150,26 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val updated = (listOf(record) + s.vitalSigns).newestFirst().take(VITAL_SIGNS_MAX_RECORDS)
         viewModelScope.launch {
             repo.local.saveVitalSigns(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 vitalSigns = updated,
                 measurementAt = nowLocalInput(),
                 systolic = "", diastolic = "", heartRate = "", spo2 = "",
                 glucose = "", glucoseContext = "fasting", hba1c = "", temperature = "",
                 message = "Sinais vitais salvos!",
-            )
+            ) }
             pushToServer()
         }
     }
 
     // ---- Wellbeing ----
 
-    fun onSleepQuality(v: Int) { _state.value = _state.value.copy(sleepQuality = v) }
-    fun onSleepHours(v: String) { _state.value = _state.value.copy(sleepHours = v) }
-    fun onHydration(v: String) { _state.value = _state.value.copy(hydration = v) }
-    fun onMood(v: Int) { _state.value = _state.value.copy(mood = v) }
-    fun onMoodNote(v: String) { _state.value = _state.value.copy(moodNote = v) }
-    fun onActivityType(v: String) { _state.value = _state.value.copy(activityType = v) }
-    fun onActivityDuration(v: String) { _state.value = _state.value.copy(activityDuration = v) }
+    fun onSleepQuality(v: Int) { _state.update { it.copy(sleepQuality = v) } }
+    fun onSleepHours(v: String) { _state.update { it.copy(sleepHours = v) } }
+    fun onHydration(v: String) { _state.update { it.copy(hydration = v) } }
+    fun onMood(v: Int) { _state.update { it.copy(mood = v) } }
+    fun onMoodNote(v: String) { _state.update { it.copy(moodNote = v) } }
+    fun onActivityType(v: String) { _state.update { it.copy(activityType = v) } }
+    fun onActivityDuration(v: String) { _state.update { it.copy(activityDuration = v) } }
 
     fun saveWellbeing() {
         val s = _state.value
@@ -184,21 +186,21 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         val updated = (listOf(record) + s.wellbeing).take(MAX_RECORDS)
         viewModelScope.launch {
             repo.local.saveWellbeing(updated)
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 wellbeing = updated,
                 sleepQuality = null, sleepHours = "", hydration = "",
                 mood = null, moodNote = "", activityType = "", activityDuration = "",
                 message = "Dados de bem-estar salvos!",
-            )
+            ) }
         }
     }
 
     // ---- Safety ----
 
-    fun onWeight(v: String) { _state.value = _state.value.copy(weight = v) }
-    fun onHeight(v: String) { _state.value = _state.value.copy(height = v) }
-    fun onSex(v: String) { _state.value = _state.value.copy(sex = v) }
-    fun onCareLevel(v: Int) { _state.value = _state.value.copy(careLevel = v) }
+    fun onWeight(v: String) { _state.update { it.copy(weight = v) } }
+    fun onHeight(v: String) { _state.update { it.copy(height = v) } }
+    fun onSex(v: String) { _state.update { it.copy(sex = v) } }
+    fun onCareLevel(v: Int) { _state.update { it.copy(careLevel = v) } }
 
     fun saveSafety() {
         val s = _state.value
@@ -220,7 +222,7 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
             record.height?.let { repo.local.setProfileHeight(jsNumber(it)) }
             if (record.sex != "not_informed") repo.local.setProfileGender(record.sex)
             // `sfForm.reset()`: o formulário inteiro volta ao estado inicial.
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 safety = updated,
                 profileSex = if (record.sex in setOf("female", "male", "other")) record.sex else _state.value.profileSex,
                 weight = "",
@@ -228,12 +230,12 @@ class HealthViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 sex = "auto",
                 careLevel = null,
                 message = "Dados de segurança salvos!",
-            )
+            ) }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     /**
      * Mirrors the measurements up to the server, which keeps them for the

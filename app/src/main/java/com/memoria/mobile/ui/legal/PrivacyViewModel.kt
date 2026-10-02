@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.legal
 
+import kotlinx.coroutines.flow.update
+
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -69,25 +71,25 @@ class PrivacyViewModel(
     val state: StateFlow<PrivacyUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.me()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(loading = false, user = r.value)
-                is ApiResult.Err -> _state.value = _state.value.copy(loading = false, error = r.message)
+                is ApiResult.Ok -> _state.update { it.copy(loading = false, user = r.value) }
+                is ApiResult.Err -> _state.update { it.copy(loading = false, error = r.message) }
             }
         }
     }
 
     /** Fetches the export; the screen then asks the user where to save it. */
     fun requestExport() {
-        _state.value = _state.value.copy(working = true, error = null)
+        _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.exportData()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     working = false,
                     pendingExport = r.value,
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
@@ -102,7 +104,7 @@ class PrivacyViewModel(
                         ?: error("sem acesso de escrita")
                 }.isSuccess
             }
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 pendingExport = null,
                 message = if (ok) {
                     "Dados exportados (${bytes.size / 1024} KB)."
@@ -110,17 +112,17 @@ class PrivacyViewModel(
                     null
                 },
                 error = if (ok) null else "Não foi possível gravar o arquivo escolhido.",
-            )
+            ) }
         }
     }
 
-    fun discardExport() { _state.value = _state.value.copy(pendingExport = null) }
+    fun discardExport() { _state.update { it.copy(pendingExport = null) } }
 
     fun setConsent(granted: Boolean) {
-        _state.value = _state.value.copy(working = true, error = null)
+        _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.setConsent(granted)) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     working = false,
                     user = r.value,
                     message = if (granted) {
@@ -128,22 +130,22 @@ class PrivacyViewModel(
                     } else {
                         "Consentimento revogado. Você pode conceder de novo quando quiser."
                     },
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
 
     fun deleteAccount() {
-        _state.value = _state.value.copy(working = true, error = null)
+        _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {
             when (val r = repo.deleteAccount()) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(working = false, accountDeleted = true)
-                is ApiResult.Err -> _state.value = _state.value.copy(working = false, error = r.message)
+                is ApiResult.Ok -> _state.update { it.copy(working = false, accountDeleted = true) }
+                is ApiResult.Err -> _state.update { it.copy(working = false, error = r.message) }
             }
         }
     }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
+    fun clearError() { _state.update { it.copy(error = null) } }
 }

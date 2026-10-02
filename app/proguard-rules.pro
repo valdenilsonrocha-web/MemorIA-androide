@@ -8,3 +8,5 @@
 # Moshi reflective adapters keep model classes
 -keep class com.memoria.mobile.data.remote.** { *; }
 -keepclassmembers class com.memoria.mobile.data.remote.** { *; }
+-keep class com.memoria.mobile.data.local.** { *; }
+-keepclassmembers class com.memoria.mobile.data.local.** { *; }

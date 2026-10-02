@@ -1,5 +1,7 @@
 package com.memoria.mobile.ui.reports
 
+import kotlinx.coroutines.flow.update
+
 import android.content.ContentResolver
 import android.net.Uri
 import androidx.lifecycle.ViewModel
@@ -271,7 +273,7 @@ class ReportsViewModel(private val repo: MemoriaRepository) : ViewModel() {
     val state: StateFlow<ReportsUiState> = _state.asStateFlow()
 
     fun load() {
-        _state.value = _state.value.copy(loading = true, error = null)
+        _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val historyResult = repo.history(limit = 500)
             val medications = (repo.medications() as? ApiResult.Ok)?.value.orEmpty()
@@ -280,39 +282,39 @@ class ReportsViewModel(private val repo: MemoriaRepository) : ViewModel() {
             val looks = repo.local.medicationLooks().associateBy { it.medicationId }
 
             when (historyResult) {
-                is ApiResult.Ok -> _state.value = _state.value.copy(
+                is ApiResult.Ok -> _state.update { it.copy(
                     loading = false,
                     user = user,
                     history = historyResult.value,
                     medications = medications,
                     vitalSigns = vitalSigns,
                     looks = looks,
-                )
-                is ApiResult.Err -> _state.value = _state.value.copy(
+                ) }
+                is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
                     user = user,
                     medications = medications,
                     vitalSigns = vitalSigns,
                     looks = looks,
                     error = historyResult.message,
-                )
+                ) }
             }
         }
     }
 
-    fun setPeriod(period: HistoryPeriod) { _state.value = _state.value.copy(period = period) }
+    fun setPeriod(period: HistoryPeriod) { _state.update { it.copy(period = period) } }
 
-    fun setSearch(term: String) { _state.value = _state.value.copy(search = term) }
+    fun setSearch(term: String) { _state.update { it.copy(search = term) } }
 
     fun clearFilters() {
-        _state.value = _state.value.copy(period = HistoryPeriod.ALL, search = "")
+        _state.update { it.copy(period = HistoryPeriod.ALL, search = "") }
     }
 
-    fun setVitalPeriod(period: VitalSignsPeriod) { _state.value = _state.value.copy(vitalPeriod = period) }
+    fun setVitalPeriod(period: VitalSignsPeriod) { _state.update { it.copy(vitalPeriod = period) } }
 
-    fun clearVitalFilter() { _state.value = _state.value.copy(vitalPeriod = VitalSignsPeriod.ALL) }
+    fun clearVitalFilter() { _state.update { it.copy(vitalPeriod = VitalSignsPeriod.ALL) } }
 
-    fun clearError() { _state.value = _state.value.copy(error = null) }
+    fun clearError() { _state.update { it.copy(error = null) } }
 
     /**
      * Hands the report text to the screen so it can be written to a file the user
@@ -320,7 +322,7 @@ class ReportsViewModel(private val repo: MemoriaRepository) : ViewModel() {
      * also writes plain text (see `exportReportPdf()` in `app.js`). Keeping the
      * same format means a report exported on either side reads identically.
      */
-    fun requestExport() { _state.value = _state.value.copy(exporting = true) }
+    fun requestExport() { _state.update { it.copy(exporting = true) } }
 
     /** Writes the report to the destination the user picked in the file picker. */
     fun writeExportTo(destination: Uri, resolver: ContentResolver) {
@@ -332,17 +334,17 @@ class ReportsViewModel(private val repo: MemoriaRepository) : ViewModel() {
                         ?: error("sem acesso de escrita")
                 }.isSuccess
             }
-            _state.value = _state.value.copy(
+            _state.update { it.copy(
                 exporting = false,
                 message = if (ok) "✅ Relatório exportado!" else null,
                 error = if (ok) null else "Não foi possível gravar o arquivo escolhido.",
-            )
+            ) }
         }
     }
 
-    fun discardExport() { _state.value = _state.value.copy(exporting = false) }
+    fun discardExport() { _state.update { it.copy(exporting = false) } }
 
-    fun consumeMessage() { _state.value = _state.value.copy(message = null) }
+    fun consumeMessage() { _state.update { it.copy(message = null) } }
 
     /** O ficheiro do "Exportar PDF" — `exportReportPdf()` do `app.js`, linha a linha. */
     fun exportText(): String {
