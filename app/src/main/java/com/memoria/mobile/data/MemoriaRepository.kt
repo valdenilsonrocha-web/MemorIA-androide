@@ -372,22 +372,6 @@ class MemoriaRepository(
         envelopeValue(r) { it }
     }
 
-    /**
-     * Web `apiService.sendWhatsAppMessage(to, message, metadata)`. Ok(success)
-     * when the server answered 2xx; Err when it refused (non-2xx) or the network
-     * failed — the two cases the web tells apart with different toasts.
-     */
-    suspend fun sendWhatsAppMessage(
-        to: String,
-        message: String,
-        metadata: Map<String, String> = emptyMap(),
-    ): ApiResult<Boolean> = call {
-        val r = api().sendWhatsAppMessage(
-            com.memoria.mobile.data.remote.WhatsAppSendRequest(to = to, message = message, metadata = metadata)
-        )
-        if (r.isSuccessful) ApiResult.Ok(r.body()?.success == true) else ApiResult.Err(serverError(r))
-    }
-
     suspend fun me(): ApiResult<User> = call {
         val r = api().me()
         envelopeValue(r) { it.user }

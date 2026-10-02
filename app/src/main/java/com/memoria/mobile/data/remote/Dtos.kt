@@ -501,13 +501,3 @@ data class VoiceAssistantDispatchData(
     /** "browser-tts" when the server only prepared the phrase instead of posting it. */
     val mode: String? = null,
 )
-
-// ---- WhatsApp (web `apiService.sendWhatsAppMessage`) ---------------------
-
-/** `POST /api/integrations/whatsapp/send` — `{ to, message, metadata }`. */
-@JsonClass(generateAdapter = true)
-data class WhatsAppSendRequest(
-    val to: String,
-    val message: String,
-    val metadata: Map<String, String> = emptyMap(),
-)
