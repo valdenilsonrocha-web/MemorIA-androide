@@ -383,6 +383,15 @@ private fun tabFor(route: String?): String? = when {
 }
 
 private fun navigateToTab(nav: NavHostController, route: String) {
+    // Close the secondary pages (Editar/Detalhes do Medicamento, Calendário…)
+    // sitting on top of the current tab first. Otherwise `saveState` saved them
+    // with the tab and `restoreState` brought them back: tapping "Medicamentos"
+    // from the edit page reopened the edit page instead of the tab. The web has
+    // no back stack — a bottom-bar item always shows that page.
+    while (nav.currentDestination?.route.let { r -> r != null && BOTTOM_TABS.none { it.route == r } }) {
+        if (!nav.popBackStack()) break
+    }
+    if (nav.currentDestination?.route == route) return
     nav.navigate(route) {
         popUpTo(nav.graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
