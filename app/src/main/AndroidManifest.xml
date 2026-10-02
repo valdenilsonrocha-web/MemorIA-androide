@@ -32,6 +32,11 @@
       abre o ReminderAlertActivity mesmo com o ecrã bloqueado.
     -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!--
+      Com o celular em uso a full-screen intent vira uma notificação pequena;
+      "Sobrepor a outros apps" deixa o lembrete de remédio abrir grande mesmo assim.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".MemoriaApp"

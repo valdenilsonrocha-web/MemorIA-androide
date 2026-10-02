@@ -196,6 +196,9 @@ private fun MainFlow(onLogout: () -> Unit) {
         return
     }
 
+    // Medication reminders must always open big; ask for what that needs.
+    com.memoria.mobile.ui.common.BigAlertPermissionDialog()
+
     val goHome = { navigateToTab(nav, Routes.HOME) }
     val goMeds = { navigateToTab(nav, Routes.MEDS) }
 

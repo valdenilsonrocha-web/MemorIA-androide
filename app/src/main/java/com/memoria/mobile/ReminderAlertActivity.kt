@@ -1,6 +1,9 @@
 package com.memoria.mobile
 
+import android.app.ActivityManager
 import android.app.KeyguardManager
+import android.net.Uri
+import android.provider.Settings
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -170,6 +173,17 @@ class ReminderAlertActivity : ComponentActivity() {
         answeredReceiver = receiver
     }
 
+    // singleTask: a second dose firing while this alert is open arrives here.
+    // Rebuild for the new dose instead of leaving the old one on screen.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val next = DoseAlarm.readFrom(intent) ?: return
+        val current = DoseAlarm.readFrom(getIntent())
+        if (current?.requestCode == next.requestCode) return
+        setIntent(intent)
+        recreate()
+    }
+
     override fun onDestroy() {
         answeredReceiver?.let { runCatching { unregisterReceiver(it) } }
         answeredReceiver = null
@@ -246,6 +260,50 @@ class ReminderAlertActivity : ComponentActivity() {
                 Intent(context, ReminderAlertActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
             )
+
+        /**
+         * Opens the big alert right away when Android lets the app start an
+         * activity from the background: while the app is on screen, or once the
+         * user has allowed "Sobrepor a outros apps". Without either, the
+         * notification's full-screen intent still covers the locked phone.
+         */
+        fun launchNow(context: Context, dose: DoseAlarm) {
+            if (!isAppInForeground() && !Settings.canDrawOverlays(context)) return
+            runCatching { context.startActivity(intentFor(context, dose)) }
+        }
+
+        private fun isAppInForeground(): Boolean {
+            val info = ActivityManager.RunningAppProcessInfo()
+            ActivityManager.getMyMemoryState(info)
+            return info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
+        }
+
+        /**
+         * What the phone still needs for every medication reminder to open big:
+         * the full-screen permission (Android 14+) and "Sobrepor a outros apps"
+         * (to open it while the phone is in use). Empty when all is granted.
+         */
+        fun missingPermissionIntents(context: Context): List<Intent> = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                if (nm != null && !nm.canUseFullScreenIntent()) {
+                    add(
+                        Intent(
+                            Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                            Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                }
+            }
+            if (!Settings.canDrawOverlays(context)) {
+                add(
+                    Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }
+        }
     }
 }
 

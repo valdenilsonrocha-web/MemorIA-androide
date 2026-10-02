@@ -100,6 +100,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
                 )
             scheduleSilence(context, dose)
+            // Phone in use: the full-screen intent would only be a small heads-up.
+            com.memoria.mobile.ReminderAlertActivity.launchNow(context, dose)
         } else {
             Log.w(TAG, "Sem permissão de notificação; lembrete de ${dose.medicationName} não mostrado")
         }

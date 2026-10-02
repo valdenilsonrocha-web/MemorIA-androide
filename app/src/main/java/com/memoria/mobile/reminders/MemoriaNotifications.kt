@@ -216,18 +216,15 @@ object MemoriaNotifications {
     }
 
     /**
-     * `alertDisplayType` (onboarding step "Tipo de alerta"): "fullscreen" — the
-     * web's default — opens the "Hora do Medicamento!" modal over the whole
-     * screen, lock screen included ([com.memoria.mobile.ReminderAlertActivity]);
-     * "normal" leaves the ordinary heads-up notification. Where the system does
-     * not allow full-screen intents (Android 14+ without the permission) the
-     * notification simply stays a heads-up.
+     * Every medication reminder is the big "Hora do Medicamento!" alert
+     * ([com.memoria.mobile.ReminderAlertActivity]) — regra do produto: lembretes
+     * de medicamento são SEMPRE grandes, tudo o resto (consultas, estoque) é
+     * notificação pequena. The onboarding's "Tipo de alerta" no longer turns it
+     * off. The full-screen intent covers the locked phone; with the phone in use
+     * the system shrinks it to a heads-up, so [ReminderReceiver] also opens the
+     * alert directly (see [com.memoria.mobile.ReminderAlertActivity.launchNow]).
      */
     private fun applyFullScreen(context: Context, builder: NotificationCompat.Builder, dose: DoseAlarm) {
-        val type = runCatching {
-            com.memoria.mobile.ui.auth.OnboardingPrefs.alertDisplayType(context)
-        }.getOrDefault("fullscreen")
-        if (type != "fullscreen") return
         val fullScreen = PendingIntent.getActivity(
             context,
             dose.requestCode + FULL_SCREEN_REQUEST_OFFSET,
