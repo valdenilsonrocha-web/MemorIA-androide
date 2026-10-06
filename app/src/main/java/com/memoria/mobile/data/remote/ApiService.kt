@@ -93,6 +93,12 @@ interface ApiService {
         @Body body: VoiceAssistantDispatchRequest,
     ): Response<Envelope<VoiceAssistantDispatchData>>
 
+    @GET("payments/google-play/config")
+    suspend fun googlePlayConfig(): Response<Envelope<GooglePlayConfig>>
+
+    @POST("payments/google-play/verify")
+    suspend fun verifyGooglePlayPurchase(@Body body: GooglePlayPurchaseRequest): Response<Envelope<GooglePlayEntitlement>>
+
     // Payments
     @GET("payments/config")
     suspend fun paymentConfig(): Response<Envelope<PaymentConfig>>

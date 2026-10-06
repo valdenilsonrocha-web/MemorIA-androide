@@ -28,8 +28,8 @@ android {
         applicationId = "com.memoria.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "5.5"
+        versionCode = 12
+        versionName = "5.6"
 
         // Default public backend base URL (no trailing slash, WITHOUT /api — the
         // client appends /api, mirroring the web frontend's runtime-config.js).
@@ -44,6 +44,9 @@ android {
             "DEFAULT_API_BASE_URL",
             "\"https://35.247.217.66.nip.io\""
         )
+        buildConfigField("String", "PLAY_PRODUCT_ID", "\"memoria_premium\"")
+        buildConfigField("String", "PLAY_MONTHLY_BASE_PLAN", "\"monthly\"")
+        buildConfigField("String", "PLAY_ANNUAL_BASE_PLAN", "\"annual\"")
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -104,6 +107,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
 
+    implementation("com.android.billingclient:billing:9.1.0")
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp)

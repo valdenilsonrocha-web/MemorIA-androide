@@ -448,6 +448,14 @@ class MemoriaRepository(
         simpleResult(api().deletePrescription(id))
     }
 
+    suspend fun googlePlayConfig(): ApiResult<com.memoria.mobile.data.remote.GooglePlayConfig> = call {
+        envelopeValue(api().googlePlayConfig()) { it }
+    }
+
+    suspend fun verifyGooglePlayPurchase(token: String): ApiResult<com.memoria.mobile.data.remote.GooglePlayEntitlement> = call {
+        envelopeValue(api().verifyGooglePlayPurchase(com.memoria.mobile.data.remote.GooglePlayPurchaseRequest(token))) { it }
+    }
+
     // ---- Plans / payments ----
 
     suspend fun paymentConfig(): ApiResult<PaymentConfig> = call {

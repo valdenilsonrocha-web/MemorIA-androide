@@ -242,3 +242,7 @@ web, incluindo pagamento/assinatura, receitas, assistente de voz e painel admin.
 ## 📄 Licença
 
 **MIT** — ver [LICENSE](LICENSE).
+
+## Google Play Billing
+
+A versão 5.6 usa Google Play para assinaturas no Android. Consulte [GOOGLE_PLAY_BILLING.md](GOOGLE_PLAY_BILLING.md) para catálogo, configuração GCP/backend e testes internos.
