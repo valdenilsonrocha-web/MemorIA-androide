@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.health.SelectField
+import com.memoria.mobile.ui.common.FitText
+import androidx.compose.foundation.layout.heightIn
 
 /** As opções do `<select id="registerGender">` da web, na mesma ordem. */
 private val GENDER_OPTIONS = listOf(
@@ -207,9 +209,9 @@ fun RegisterScreen(
                 OutlinedButton(
                     onClick = onBack,
                     enabled = !state.loading,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                 ) {
-                    Text("Cancelar")
+                    FitText("Cancelar")
                 }
                 Button(
                     // Como na web, o botão fica ativo: sem o consentimento o
@@ -221,7 +223,7 @@ fun RegisterScreen(
                         )
                     },
                     enabled = !state.loading,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                 ) {
                     if (state.loading) {
                         CircularProgressIndicator(
@@ -230,7 +232,7 @@ fun RegisterScreen(
                             strokeWidth = 2.dp,
                         )
                     } else {
-                        Text("Cadastrar")
+                        FitText("Cadastrar")
                     }
                 }
             }

@@ -71,6 +71,7 @@ import com.memoria.mobile.ui.theme.BrandBlueBright
 import com.memoria.mobile.ui.theme.BrandBlueDeep
 import com.memoria.mobile.ui.theme.LocalThemePreset
 import com.memoria.mobile.ui.theme.RedMiss
+import androidx.compose.ui.text.style.TextAlign
 
 /**
  * O degradê da marca — `linear-gradient(160deg, #0053d6 0%, #0060f8 52%, #2f7dff 100%)`
@@ -424,9 +425,18 @@ fun TrialExpiryBanner(hoursLeft: Int, onManage: () -> Unit) {
                 .background(Color.White)
                 .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
                 .clickable(onClick = onManage)
+                .widthIn(max = 128.dp)
                 .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
-            Text("Gerenciar assinatura", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
+            // Até 128dp: quebra entre as duas palavras em vez de esmagar o aviso ao lado.
+            FitText(
+                "Gerenciar assinatura",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1F2937),
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

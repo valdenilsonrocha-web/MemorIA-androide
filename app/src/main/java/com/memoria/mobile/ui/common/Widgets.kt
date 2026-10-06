@@ -294,11 +294,12 @@ fun StatTile(
                 fontWeight = FontWeight.Bold,
                 color = accent,
             )
-            Text(
+            FitText(
                 label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+                maxLines = 3,
             )
         }
     }

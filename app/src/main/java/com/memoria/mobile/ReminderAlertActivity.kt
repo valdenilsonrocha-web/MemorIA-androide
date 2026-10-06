@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -82,6 +83,8 @@ import com.memoria.mobile.ui.theme.MemoriaTheme
 import com.memoria.mobile.ui.theme.SurfaceLight
 import com.memoria.mobile.ui.theme.TextPrimary
 import com.memoria.mobile.ui.theme.TextSecondary
+import com.memoria.mobile.ui.common.FitText
+import com.memoria.mobile.ui.theme.GreenTake
 
 /**
  * The web's `#notificationModal` in its `notification-fullscreen` form — what
@@ -344,8 +347,9 @@ private fun ReminderModal(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(Icons.Filled.Notifications, contentDescription = null, tint = colors.primary, modifier = Modifier.size(30.dp))
-                Text(
+                FitText(
                     "Hora do Medicamento!",
+                    maxLines = 2,
                     fontSize = 30.sp,
                     lineHeight = 36.sp,
                     fontWeight = FontWeight.Bold,
@@ -392,8 +396,9 @@ private fun ReminderModal(
                 }
                 Spacer(Modifier.size(20.dp))
                 // .modal-medication-dosage
-                Text(
+                FitText(
                     medication,
+                    maxLines = 3,
                     fontSize = 20.sp,
                     color = TextSecondary,
                     textAlign = TextAlign.Center,
@@ -414,31 +419,34 @@ private fun ReminderModal(
             HorizontalDivider(thickness = 2.dp, color = colors.outline)
             // .modal-actions: .btn-secondary.btn-large "Soneca" + .btn-primary.btn-large "Tomei"
             Row(
-                Modifier.fillMaxWidth().padding(32.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedButton(
                     onClick = onSnooze,
                     modifier = Modifier.weight(1f).heightIn(min = 72.dp),
                     shape = RoundedCornerShape(24.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                     border = BorderStroke(2.dp, colors.outline),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = SurfaceLight,
                         contentColor = TextPrimary,
                     ),
                 ) {
-                    Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text("Soneca", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    FitText("Soneca", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Button(
                     onClick = onTaken,
                     modifier = Modifier.weight(1f).heightIn(min = 72.dp),
                     shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenTake, contentColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 ) {
-                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text("Tomei", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    FitText("Tomei", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

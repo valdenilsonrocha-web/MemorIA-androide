@@ -19,6 +19,8 @@ val BrandBlueSoftBorder = Color(0xFF9AC6FF)
 
 // Feedback & status colors matching web variables (--success-color, --danger-color, --warning-color)
 val GreenOk = Color(0xFF10B981) // Web: #10b981 (--success-color)
+// Botão "Tomei": verde um tom abaixo do GreenOk para o texto branco ter contraste legível.
+val GreenTake = Color(0xFF059669)
 val RedMiss = Color(0xFFEF4444)  // Web: #ef4444 (--danger-color)
 val Snooze = Color(0xFFF59E0B)   // Web: #f59e0b (--warning-color)
 val Amber = Color(0xFFF59E0B)    // Web: #f59e0b (--warning-color)

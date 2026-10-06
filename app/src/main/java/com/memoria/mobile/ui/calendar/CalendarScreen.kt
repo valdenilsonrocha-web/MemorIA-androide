@@ -53,6 +53,7 @@ import com.memoria.mobile.ui.common.PageTopGuide
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.meds.MedicationIcon
 import java.time.LocalDate
+import com.memoria.mobile.ui.common.FitText
 
 /** `loadCalendar()` month names and day headers. */
 private val MONTH_NAMES = listOf(
@@ -146,7 +147,7 @@ private fun MonthGrid(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth()) {
             WEEK_HEADERS.forEach { label ->
-                Text(
+                FitText(
                     label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,

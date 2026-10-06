@@ -72,6 +72,7 @@ import com.memoria.mobile.ui.home.InlinePageTitle
 import com.memoria.mobile.ui.meds.MedicationIcon
 import com.memoria.mobile.ui.meds.StatusBadge
 import com.memoria.mobile.ui.meds.doseStatusLabel
+import com.memoria.mobile.ui.common.FitText
 
 private val filters = listOf("all" to "Todos", "taken" to "Tomados", "missed" to "Perdidos")
 
@@ -368,7 +369,7 @@ private fun HistoryItem(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MedicationIcon(look, size = 28.dp)
-            Text(name, fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+            FitText(name, fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 3)
         }
         if (dosage.isNotBlank()) {
             Text(dosage, fontSize = 20.sp, fontWeight = FontWeight.Medium, color = TextSecondary)

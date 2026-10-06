@@ -76,6 +76,9 @@ import com.memoria.mobile.ui.common.PremiumIconSize
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.health.formatFullDateTime
 import com.memoria.mobile.ui.theme.RedMiss
+import com.memoria.mobile.ui.common.FitText
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 
 /**
  * "Minhas Receitas" — the web `prescriptionsPage`: photos of prescriptions kept
@@ -194,7 +197,8 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                             modifier = Modifier.weight(1f),
                         ) {
                             Icon(Icons.Filled.PhotoCamera, contentDescription = null)
-                            Text("  Tirar foto da receita")
+                            Spacer(Modifier.width(8.dp))
+                            FitText("Tirar foto da receita", maxLines = 2, textAlign = TextAlign.Center)
                         }
                         OutlinedButton(
                             onClick = {

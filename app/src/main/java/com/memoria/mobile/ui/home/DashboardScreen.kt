@@ -24,6 +24,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -63,6 +64,7 @@ import com.memoria.mobile.ui.meds.DELETE_CONFIRM_TEXT
 import com.memoria.mobile.ui.meds.MedicationInfoCard
 import com.memoria.mobile.ui.meds.MedicationScheduleCard
 import com.memoria.mobile.ui.theme.RedMiss
+import com.memoria.mobile.ui.common.FitText
 
 private val StatPrimary = Color(0xFF0060F8)   // --primary-color
 private val StatWarning = Color(0xFFF59E0B)   // --warning-color
@@ -145,11 +147,12 @@ fun DashboardScreen(
                         .padding(bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
+                    FitText(
                         greeting(state),
+                        maxLines = 3,
                         fontSize = 34.sp,
                         lineHeight = 40.sp,
-                        letterSpacing = (-0.5).sp,
+                        style = LocalTextStyle.current.copy(letterSpacing = (-0.5).sp),
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary,
                     )

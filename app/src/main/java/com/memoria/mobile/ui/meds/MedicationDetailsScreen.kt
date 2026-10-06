@@ -46,6 +46,10 @@ import com.memoria.mobile.ui.common.LoadingBox
 import com.memoria.mobile.ui.common.SectionCard
 import com.memoria.mobile.ui.common.repoViewModel
 import com.memoria.mobile.ui.theme.RedMiss
+import com.memoria.mobile.ui.common.FitText
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 
 private val SecondaryColor = Color(0xFF66A9FF) // --secondary-color
 private val DangerColor = Color(0xFFEF4444)    // --danger-color
@@ -104,13 +108,18 @@ fun MedicationDetailsScreen(
                                 "Nome:",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
                                 modifier = Modifier.weight(1f),
                             )
                             MedicationIcon(state.look, size = 28.dp)
-                            Text(
+                            // Sem peso, um nome longo esmagava o rótulo "Nome:" letra a letra.
+                            FitText(
                                 " ${med.name}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
+                                maxLines = 3,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1.5f, fill = false),
                             )
                         }
                         DetailRow("Dosagem:", med.dosage)
@@ -162,7 +171,8 @@ fun MedicationDetailsScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { onEdit(medicationId) }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Filled.Edit, contentDescription = null)
-                        Text(" Editar")
+                        Spacer(Modifier.width(4.dp))
+                        FitText("Editar")
                     }
                     Button(
                         onClick = { confirmDelete = true },
@@ -170,7 +180,8 @@ fun MedicationDetailsScreen(
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(Icons.Filled.Delete, contentDescription = null)
-                        Text(" Excluir")
+                        Spacer(Modifier.width(4.dp))
+                        FitText("Excluir")
                     }
                 }
             }

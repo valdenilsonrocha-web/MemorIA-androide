@@ -81,6 +81,8 @@ import com.memoria.mobile.ui.common.PageGuide
 import com.memoria.mobile.ui.common.PageTopGuide
 import com.memoria.mobile.ui.common.repoViewModel
 import java.time.LocalTime
+import com.memoria.mobile.ui.common.FitText
+import androidx.compose.ui.text.style.TextAlign
 
 /** `#frequency` options, same values and labels as the web select. */
 private val frequencies = listOf(
@@ -156,7 +158,7 @@ internal fun MedicationFormBody(state: MedEditState, vm: MedicationEditViewModel
 
     // .form-actions: Cancelar | Salvar Medicamento
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancelar") }
+        OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { FitText("Cancelar") }
         Button(
             onClick = vm::save,
             enabled = !state.saving && !state.loading,
@@ -169,7 +171,11 @@ internal fun MedicationFormBody(state: MedEditState, vm: MedicationEditViewModel
                     strokeWidth = 2.dp,
                 )
             }
-            Text(if (state.isNew) "Salvar Medicamento" else "Atualizar Medicamento")
+            FitText(
+                if (state.isNew) "Salvar Medicamento" else "Atualizar Medicamento",
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

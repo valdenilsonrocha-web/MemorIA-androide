@@ -50,6 +50,11 @@ import com.memoria.mobile.ui.theme.RedMiss
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+import com.memoria.mobile.ui.common.FitText
+import com.memoria.mobile.ui.theme.GreenTake
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 
 /** Phone-side data of one medication (look + extras), both optional. */
 data class MedLocal(val look: MedicationLook? = null, val extras: MedicationExtras? = null)
@@ -177,18 +182,26 @@ fun MedicationScheduleCard(
             // O servidor aceita nomes até 255 caracteres: os botões ficam numa
             // linha própria para um nome longo não os empurrar para fora do ecrã.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.Edit, contentDescription = null)
-                    Text(" Editar", maxLines = 1)
+                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                    Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    FitText("Editar")
                 }
                 if (status != "taken") {
-                    OutlinedButton(onClick = onSnooze, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Filled.Schedule, contentDescription = null)
-                        Text(" Soneca", maxLines = 1)
+                    OutlinedButton(onClick = onSnooze, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
+                        Icon(Icons.Filled.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        FitText("Soneca")
                     }
-                    Button(onClick = onTake, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Filled.Check, contentDescription = null)
-                        Text(" Tomei", maxLines = 1)
+                    Button(
+                        onClick = onTake,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = GreenTake, contentColor = Color.White),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        FitText("Tomei")
                     }
                 }
             }
@@ -239,7 +252,8 @@ fun MedicationInfoCard(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Filled.Edit, contentDescription = null)
-                    Text(" Editar")
+                    Spacer(Modifier.width(4.dp))
+                    FitText("Editar")
                 }
                 Button(
                     onClick = onDelete,
@@ -247,7 +261,8 @@ fun MedicationInfoCard(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = null)
-                    Text(" Excluir")
+                    Spacer(Modifier.width(4.dp))
+                    FitText("Excluir")
                 }
             }
         }
