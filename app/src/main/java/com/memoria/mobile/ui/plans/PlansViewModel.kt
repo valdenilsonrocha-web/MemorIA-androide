@@ -331,12 +331,6 @@ class PlansViewModel(private val repo: MemoriaRepository) : ViewModel() {
         }
     }
 
-    fun onUnavailableMethod() {
-        _state.update { it.copy(
-            error = "⚠️ Pix e boleto estarão disponíveis em breve. No momento, use cartão de crédito.",
-        ) }
-    }
-
     fun cancelSubscription() {
         _state.update { it.copy(working = true, error = null) }
         viewModelScope.launch {

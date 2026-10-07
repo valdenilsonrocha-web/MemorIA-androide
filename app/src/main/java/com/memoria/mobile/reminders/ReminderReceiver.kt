@@ -189,6 +189,8 @@ class ReminderReceiver : BroadcastReceiver() {
                 // the next open, so an unrecorded dose reappears as pending.
                 is ApiResult.Err -> Log.w(TAG, "Dose não registrada: ${r.message}")
             }
+            // Open lists (Início, Atualizações, the badge) reload and drop this dose.
+            DoseEvents.notifyChanged()
         }
     }
 

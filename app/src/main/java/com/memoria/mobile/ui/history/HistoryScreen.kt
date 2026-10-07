@@ -73,6 +73,7 @@ import com.memoria.mobile.ui.meds.MedicationIcon
 import com.memoria.mobile.ui.meds.StatusBadge
 import com.memoria.mobile.ui.meds.doseStatusLabel
 import com.memoria.mobile.ui.common.FitText
+import com.memoria.mobile.ui.common.ReloadOnDoseChanges
 
 private val filters = listOf("all" to "Todos", "taken" to "Tomados", "missed" to "Perdidos")
 
@@ -106,6 +107,8 @@ fun HistoryScreen(
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { vm.load() }
+    // A dose confirmed in the alert must leave the list without reopening the page.
+    ReloadOnDoseChanges(vm::load)
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() }
     }

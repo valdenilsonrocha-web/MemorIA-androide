@@ -65,6 +65,7 @@ import com.memoria.mobile.ui.meds.MedicationInfoCard
 import com.memoria.mobile.ui.meds.MedicationScheduleCard
 import com.memoria.mobile.ui.theme.RedMiss
 import com.memoria.mobile.ui.common.FitText
+import com.memoria.mobile.ui.common.ReloadOnDoseChanges
 
 private val StatPrimary = Color(0xFF0060F8)   // --primary-color
 private val StatWarning = Color(0xFFF59E0B)   // --warning-color
@@ -102,6 +103,8 @@ fun DashboardScreen(
     val edit: (String) -> Unit = onEdit ?: onOpenMedication
 
     LaunchedEffect(Unit) { vm.load() }
+    // A dose confirmed in the alert must leave the list without reopening the page.
+    ReloadOnDoseChanges(vm::load)
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.consumeMessage() }
     }

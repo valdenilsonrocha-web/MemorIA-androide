@@ -66,6 +66,7 @@ import com.memoria.mobile.ui.reports.ReportsScreen
 import com.memoria.mobile.ui.settings.SettingsScreen
 import com.memoria.mobile.ui.whatsapp.WhatsAppScreen
 import java.io.File
+import com.memoria.mobile.ui.common.ReloadOnDoseChanges
 
 /**
  * Auth state is hoisted here (not encoded as navigation destinations) so that
@@ -157,6 +158,7 @@ private fun MainFlow(onLogout: () -> Unit) {
     // Recounted on every page change — the web recounts on each render too, and a
     // dose taken on one screen must clear the badge by the time the next shows.
     LaunchedEffect(currentRoute) { shell.refresh() }
+    ReloadOnDoseChanges(shell::refresh)
 
     // `syncProfileAvatar()`: the header avatar shows the profile photo. Re-read on
     // every page change so a photo taken in "Meu Perfil" is there on the way out.
