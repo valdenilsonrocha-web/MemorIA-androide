@@ -107,6 +107,9 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
     /** "Tomei" — `takeMedication()`. */
     fun take(slot: DoseSlot) {
         val id = slot.medication.id ?: return
+        // Leaves "Próximos Horários" at once; the reload below confirms it, and a
+        // failure puts it back.
+        markSlot(slot, "taken")
         viewModelScope.launch {
             val r = DoseActions.markTaken(
                 repo = repo,
@@ -119,9 +122,16 @@ class DashboardViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 _state.update { it.copy(message = "✅ Medicamento registrado como tomado!") }
                 load()
             } else {
+                markSlot(slot, slot.doneStatus)
                 _state.update { it.copy(message = "❌ Erro ao registrar medicamento.") }
             }
         }
+    }
+
+    private fun markSlot(slot: DoseSlot, status: String?) = _state.update { s ->
+        s.copy(todaySlots = s.todaySlots.map {
+            if (it.medication.id == slot.medication.id && it.time == slot.time) it.copy(doneStatus = status) else it
+        })
     }
 
     /**

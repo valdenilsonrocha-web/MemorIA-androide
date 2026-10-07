@@ -53,9 +53,13 @@ object Schedule {
         val onDate = history.filter { localDateOf(it.scheduledFor ?: it.createdAt) == date }
         if (onDate.isEmpty()) return slots
         return slots.map { slot ->
-            val match = onDate.firstOrNull {
+            val matches = onDate.filter {
                 it.medicationId == slot.medication.id && normalizeTime(it.scheduleTime) == slot.time
             }
+            // A dose marked "não tomei" (or snoozed, on older phones) and then taken
+            // has both entries at the same scheduled time, so their order is not
+            // reliable: "taken" wins, or the dose would stay in the pending list.
+            val match = matches.firstOrNull { it.status == "taken" } ?: matches.firstOrNull()
             if (match != null) slot.copy(doneStatus = match.status) else slot
         }
     }

@@ -139,9 +139,15 @@ class HistoryViewModel(private val repo: MemoriaRepository) : ViewModel() {
     /** "Marcar como tomado" — `resolvePendingMedication()` → `takeMedication()`. */
     fun resolve(slot: DoseSlot) {
         val id = slot.medication.id ?: return
+        // Leaves the pending list at once; a failure brings it back.
+        val before = _state.value.pending
+        _state.update { s ->
+            s.copy(pending = s.pending.filterNot { (p, _) -> p.medication.id == id && p.time == slot.time })
+        }
         viewModelScope.launch {
             val r = DoseActions.markTaken(repo, id, slot.medication.name, slot.medication.dosage, slot.time)
             _state.update { it.copy(
+                pending = if (r is ApiResult.Ok) it.pending else before,
                 message = if (r is ApiResult.Ok) "✅ Medicamento registrado como tomado!" else "❌ Erro ao registrar medicamento.",
             ) }
             if (r is ApiResult.Ok) load()
