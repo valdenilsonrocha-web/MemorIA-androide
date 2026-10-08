@@ -34,8 +34,8 @@ import com.memoria.mobile.R
  * `ad-only-free` diz o essencial — **só aparece a quem não é Premium**, e é por
  * isso que quem chama isto tem de verificar o plano antes.
  *
- * O texto é o mesmo da web, palavra por palavra, para as duas versões
- * prometerem exactamente a mesma coisa a quem paga.
+ * O texto segue o da web, mas sem "sem anúncios" (o app não tem anúncios) nem
+ * "consultas e médicos" (é gratuito): só promete o que está em PREMIUM_FEATURES.
  */
 @Composable
 fun PremiumBanner(onOpenPlans: () -> Unit, modifier: Modifier = Modifier) {
@@ -65,8 +65,8 @@ fun PremiumBanner(onOpenPlans: () -> Unit, modifier: Modifier = Modifier) {
             )
 
             Text(
-                "Tenha tudo do nosso aplicativo em suas mãos, sem anúncios, medicamentos " +
-                    "ilimitados, aviso aos cuidadores, consultas e médicos, e muito mais.",
+                "Tenha tudo do nosso aplicativo em suas mãos: medicamentos ilimitados, " +
+                    "relatórios avançados, alertas para seus contatos, receitas salvas por foto e muito mais.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

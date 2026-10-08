@@ -99,31 +99,11 @@ interface ApiService {
     @POST("payments/google-play/verify")
     suspend fun verifyGooglePlayPurchase(@Body body: GooglePlayPurchaseRequest): Response<Envelope<GooglePlayEntitlement>>
 
-    // Payments
-    @GET("payments/config")
-    suspend fun paymentConfig(): Response<Envelope<PaymentConfig>>
-
     // Admin (owner dashboard — 403 for a non-admin account)
     @GET("admin/owner-stats")
     suspend fun ownerStats(): Response<Envelope<OwnerStats>>
 
-    // Assinatura nativa: envia SÓ o token do cartão, nunca o cartão.
-    @POST("payments/subscribe")
-    suspend fun subscribeWithCard(
-        @Body body: SubscribeRequest,
-    ): Response<Envelope<SubscriptionStatusData>>
-
-    // Checkout / assinatura
-    @POST("payments/create-checkout-session")
-    suspend fun createCheckoutSession(
-        @Body body: CheckoutRequest,
-    ): Response<Envelope<CheckoutSession>>
-
-    @POST("payments/subscription-status")
-    suspend fun subscriptionStatus(
-        @Body body: SubscriptionStatusRequest,
-    ): Response<Envelope<SubscriptionStatusData>>
-
+    // Cancela uma assinatura anterior, contratada fora da Google Play.
     @POST("payments/cancel-subscription")
     suspend fun cancelSubscription(): Response<SimpleResponse>
 

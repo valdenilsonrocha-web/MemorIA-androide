@@ -222,11 +222,12 @@ fun ReportsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                         enabled = state.isPremium && !state.exporting,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
+                        // O arquivo é texto (.txt), não PDF: o rótulo da web ("Exportar PDF") não vale aqui.
                         if (state.isPremium) {
-                            Text("Exportar PDF")
+                            Text("Exportar relatório")
                         } else {
                             PremiumIcon(size = 20.dp)
-                            Text(" Exportar PDF - Premium", textAlign = TextAlign.Center)
+                            Text(" Exportar relatório - Premium", textAlign = TextAlign.Center)
                         }
                     }
                     OutlinedButton(

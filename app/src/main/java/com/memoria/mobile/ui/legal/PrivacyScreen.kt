@@ -1,5 +1,9 @@
 package com.memoria.mobile.ui.legal
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -34,10 +38,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.memoria.mobile.BuildConfig
 import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.LoadingBox
+import com.memoria.mobile.ui.common.MemoriaToast
 import com.memoria.mobile.ui.common.Schedule
 import com.memoria.mobile.ui.common.SectionCard
 import com.memoria.mobile.ui.common.systemViewModel
@@ -62,6 +70,7 @@ fun PrivacyScreen(
 ) {
     val vm = systemViewModel { repo, app, _ -> PrivacyViewModel(repo, app) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var confirmDelete by remember { mutableStateOf(false) }
     var confirmRevoke by remember { mutableStateOf(false) }
@@ -188,6 +197,22 @@ fun PrivacyScreen(
                         "Exporte os seus dados antes, se quiser guardá-los.",
                         style = MaterialTheme.typography.bodyLarge,
                     )
+                    // A Google Play só para de cobrar quando a assinatura é cancelada
+                    // lá: apagar a conta no servidor não a cancela.
+                    Text(
+                        "Atenção: apagar a conta NÃO cancela a assinatura MemorIA Premium feita pela " +
+                            "Google Play. Se você assinou, cancele a assinatura na Google Play para " +
+                            "não continuar sendo cobrado.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    OutlinedButton(
+                        onClick = { openPlaySubscriptions(context) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Gerenciar assinatura na Google Play")
+                    }
                     Button(
                         onClick = { confirmDelete = true },
                         enabled = !state.working,
@@ -232,6 +257,22 @@ fun PrivacyScreen(
 }
 
 /**
+ * The Google Play subscriptions page for this app's product — the same link as
+ * "Gerenciar assinatura na Google Play" in Planos.
+ */
+private fun openPlaySubscriptions(context: Context) {
+    val uri = Uri.parse("https://play.google.com/store/account/subscriptions").buildUpon()
+        .appendQueryParameter("package", context.packageName)
+        .appendQueryParameter("sku", BuildConfig.PLAY_PRODUCT_ID)
+        .build()
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (_: ActivityNotFoundException) {
+        MemoriaToast.show("❌ Não foi possível abrir a Google Play.")
+    }
+}
+
+/**
  * Erasure is irreversible, so a stray tap must not be enough: the user types the
  * word before the button turns on.
  */
@@ -248,6 +289,11 @@ private fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 Text(
                     "Isto apaga a sua conta, os medicamentos, o histórico de doses e as receitas. " +
                         "Não há como recuperar depois.",
+                )
+                Text(
+                    "Uma assinatura feita pela Google Play não é cancelada por aqui: cancele-a " +
+                        "na Google Play.",
+                    fontWeight = FontWeight.SemiBold,
                 )
                 Text("Para confirmar, digite $DELETE_CONFIRMATION:")
                 OutlinedTextField(

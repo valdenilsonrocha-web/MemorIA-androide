@@ -535,8 +535,8 @@ private fun UpdatesPremiumBanner(onOpenPlans: () -> Unit) {
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
             )
             Text(
-                "Tenha tudo do nosso aplicativo em suas mãos, sem anúncios, medicamentos ilimitados, " +
-                    "aviso aos cuidadores, consultas e médicos, e muito mais.",
+                "Tenha tudo do nosso aplicativo em suas mãos: medicamentos ilimitados, relatórios avançados, " +
+                    "alertas para seus contatos, receitas salvas por foto e muito mais.",
                 fontSize = 16.sp,
                 lineHeight = 23.sp,
                 color = Color(0xFF374151),

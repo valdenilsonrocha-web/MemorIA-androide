@@ -353,7 +353,7 @@ private fun LabeledLine(label: String, value: String) {
 @Composable
 private fun PremiumTipBanner(onOpenPlans: () -> Unit) = AdOnlyFreeBanner(
     title = "Quer mais recursos?",
-    body = "Com o Premium você salva receitas por foto, sincroniza na nuvem e recebe alertas de emergência automáticos.",
+    body = "Com o Premium você salva receitas por foto no histórico e as mantém sincronizadas na nuvem.",
     buttonText = "Assinar Premium",
     onOpenPlans = onOpenPlans,
 )

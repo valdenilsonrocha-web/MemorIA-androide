@@ -124,9 +124,9 @@ private val DATE_BR: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy
 /**
  * "Configurações" — the web `settingsPage`, section for section and in the same
  * order: Som de Alerta, Tempo de Soneca, Tema, Estilo da Ilustração de
- * Relatórios, Envio Automático de Relatório, Ativar Notificações, Alerta de
- * Emergência, Privacidade e LGPD, Assistente de Voz, Sincronização Online,
- * Dados e Atualização do Aplicativo.
+ * Relatórios, Envio Automático de Relatório, Ativar Notificações, Privacidade e
+ * LGPD, Assistente de Voz, Sincronização Online, Dados e Atualização do
+ * Aplicativo. The web's "Alerta de Emergência" is left out (nothing sends it).
  *
  * What only the phone needs (stock alerts, server URL, saved password) comes
  * after the web sections.
@@ -357,25 +357,8 @@ fun SettingsScreen(
                 }
             }
 
-            // ---- Alerta de Emergência (Premium) ----
-            SectionCard(titleColor = TextPrimary, title = "Alerta de Emergência (Premium)", icon = Icons.Filled.Warning) {
-                Hint(
-                    if (state.isPremium) {
-                        "No Premium, escolha se o alerta deve ser enviado automaticamente ou com confirmação."
-                    } else {
-                        "Ative o Premium para configurar alerta automático de emergência."
-                    },
-                )
-                SettingsSelect(
-                    options = listOf(
-                        "auto" to "Automático imediato",
-                        "confirm" to "Pedir confirmação antes de enviar",
-                    ),
-                    selected = state.emergencyAlertMode,
-                    onSelect = vm::setEmergencyAlertMode,
-                    enabled = state.isPremium,
-                )
-            }
+            // The web's "Alerta de Emergência (Premium)" is not shown: nothing in the app
+            // sends that alert, so offering the choice would promise a feature that does not exist.
 
             // ---- Privacidade e LGPD ----
             SectionCard(
@@ -449,6 +432,9 @@ fun SettingsScreen(
                         options = VOICE_PROVIDERS,
                         selected = state.voiceProvider,
                         onSelect = vm::onVoiceProvider,
+                        // A web-only provider saved elsewhere ("browser-tts") shows an
+                        // empty select instead of pretending to be "Alexa".
+                        blankWhenUnmatched = true,
                     )
 
                     OutlinedTextField(
@@ -468,7 +454,7 @@ fun SettingsScreen(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Hint("Necessário para Alexa/Google/Webhook. No modo Voz do navegador, não precisa.")
+                    Hint("A URL do webhook é necessária para Alexa, Google Assistant e Webhook personalizado.")
 
                     Button(
                         onClick = vm::saveVoiceAssistant,
@@ -489,10 +475,12 @@ fun SettingsScreen(
 
                     Hint(
                         if (state.voiceSavedEnabled) {
+                            // "browser-tts" can only have been saved on the web version.
                             val provider = if (state.voiceSavedProvider == "browser-tts") {
-                                "Voz do navegador"
+                                "Voz do navegador (só na versão web)"
                             } else {
-                                state.voiceSavedProvider
+                                VOICE_PROVIDERS.firstOrNull { it.first == state.voiceSavedProvider }?.second
+                                    ?: state.voiceSavedProvider
                             }
                             "✅ Integração ativa — $provider"
                         } else {
@@ -582,7 +570,7 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = RedMiss),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Limpar Todos os Dados")
+                    Text("Limpar Dados deste Celular")
                 }
                 if (onOpenPrivacy != null) {
                     // Só no app nativo: a Google Play exige excluir a conta dentro do app.
@@ -710,22 +698,30 @@ fun SettingsScreen(
     }
 
     if (confirmClear) {
-        // The web's `confirmDangerModal`; "Apagar tudo" runs `storageService.clearAllData()`,
-        // i.e. what the DEVICE keeps — the account on the server is untouched, as on the web.
+        // The web's `confirmDangerModal`; the button runs `storageService.clearAllData()`,
+        // i.e. what the DEVICE keeps — the account on the server is untouched, as on the web,
+        // so the text must not promise more than that.
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Warning, contentDescription = null, tint = RedMiss)
-                    Text("  Apagar todos os dados")
+                    Text("  Apagar dados deste celular")
                 }
             },
             text = {
                 Text(
                     buildAnnotatedString {
-                        append("Todos os medicamentos, histórico e configurações serão apagados permanentemente. ")
+                        append(
+                            "Serão apagados somente os dados salvos neste celular: registros locais, " +
+                                "foto do perfil e configurações do aplicativo. ",
+                        )
+                        append(
+                            "Sua conta e os dados dela continuam guardados no servidor. Para excluir a " +
+                                "conta, use \"Privacidade e exclusão da conta\". ",
+                        )
                         withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append("Esta ação não pode ser desfeita.")
+                            append("O que for apagado deste celular não pode ser recuperado.")
                         }
                     },
                 )
@@ -736,7 +732,7 @@ fun SettingsScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = RedMiss),
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = null)
-                    Text("  Apagar tudo")
+                    Text("  Apagar deste celular")
                 }
             },
             dismissButton = { OutlinedButton(onClick = { confirmClear = false }) { Text("Cancelar") } },
@@ -744,12 +740,15 @@ fun SettingsScreen(
     }
 }
 
-/** The four providers the backend accepts, with the web select's labels. */
+/**
+ * The providers that work from the phone, with the web select's labels. The
+ * backend also accepts `browser-tts`, but that one is spoken by the web page in
+ * the browser — nothing on Android plays it — so it is not offered here.
+ */
 private val VOICE_PROVIDERS = listOf(
     "alexa" to "Alexa",
     "google" to "Google Assistant",
     "webhook" to "Webhook personalizado",
-    "browser-tts" to "Voz do navegador (teste local)",
 )
 
 /** The web's `formatLastSync`. */

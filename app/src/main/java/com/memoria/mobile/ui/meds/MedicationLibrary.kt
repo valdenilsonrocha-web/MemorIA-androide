@@ -5,6 +5,13 @@ package com.memoria.mobile.ui.meds
  * `frontend/public/src/services/medicationLibrary.js` (RENAME / SUS / ANVISA).
  *
  * GERADO a partir do ficheiro da web: não editar à mão; regenerar quando a web mudar.
+ * Exceções — manter ao regenerar:
+ * - o Clonazepam (benzodiazepínico, ansiolítico/anticonvulsivante) fica em
+ *   "neurologico", não em "antidepressivo" como na web;
+ * - Quetiapina, Risperidona, Olanzapina, Haloperidol e Aripiprazol (antipsicóticos)
+ *   ficam na categoria própria "antipsicotico", não em "antidepressivo";
+ * - nomes repetidos na web (Alprazolam, Clonazepam, Empagliflozina, Montelucaste)
+ *   entram uma vez só, na primeira ocorrência.
  */
 data class LibraryCategory(val id: String, val label: String)
 
@@ -28,6 +35,7 @@ object MedicationLibrary {
         LibraryCategory("respiratorio", "Respiratórios"),
         LibraryCategory("colesterol", "Colesterol e Triglicerídeos"),
         LibraryCategory("antidepressivo", "Antidepressivos e Ansiolíticos"),
+        LibraryCategory("antipsicotico", "Antipsicóticos"),
         LibraryCategory("vitamina", "Vitaminas e Suplementos"),
         LibraryCategory("anticoagulante", "Anticoagulantes"),
         LibraryCategory("tireoide", "Tireoide"),
@@ -137,16 +145,16 @@ object MedicationLibrary {
             add(LibraryMedication("Escitalopram", listOf("10mg", "20mg"), "antidepressivo", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
             add(LibraryMedication("Amitriptilina", listOf("10mg", "25mg", "75mg"), "antidepressivo", "Tomar à noite. Pode causar sonolência.", "daily"))
             add(LibraryMedication("Alprazolam", listOf("0,25mg", "0,5mg", "1mg"), "antidepressivo", "Uso controlado. Não interromper abruptamente.", "daily"))
-            add(LibraryMedication("Clonazepam", listOf("0,5mg", "1mg", "2mg"), "antidepressivo", "Uso controlado. Não interromper sem orientação médica.", "daily"))
+            add(LibraryMedication("Clonazepam", listOf("0,5mg", "1mg", "2mg"), "neurologico", "Uso controlado. Não interromper sem orientação médica.", "daily"))
             add(LibraryMedication("Bupropiona", listOf("150mg", "300mg"), "antidepressivo", "Não partir ou mastigar o comprimido.", "daily"))
             add(LibraryMedication("Venlafaxina", listOf("37,5mg", "75mg", "150mg"), "antidepressivo", "Tomar com alimentos. Não interromper abruptamente.", "daily"))
             add(LibraryMedication("Duloxetina", listOf("30mg", "60mg"), "antidepressivo", "Tomar com alimentos. Engolir inteiro.", "daily"))
             add(LibraryMedication("Mirtazapina", listOf("15mg", "30mg", "45mg"), "antidepressivo", "Tomar à noite. Pode causar sonolência e aumento de apetite.", "daily"))
             add(LibraryMedication("Paroxetina", listOf("10mg", "20mg", "40mg"), "antidepressivo", "Tomar pela manhã com alimentos.", "daily"))
-            add(LibraryMedication("Quetiapina", listOf("25mg", "50mg", "100mg", "200mg"), "antidepressivo", "Tomar à noite. Pode causar sonolência.", "daily"))
-            add(LibraryMedication("Risperidona", listOf("0,5mg", "1mg", "2mg", "3mg"), "antidepressivo", "Tomar conforme prescrição, 1 ou 2 vezes ao dia.", "daily"))
-            add(LibraryMedication("Olanzapina", listOf("2,5mg", "5mg", "10mg"), "antidepressivo", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
-            add(LibraryMedication("Haloperidol", listOf("1mg", "5mg"), "antidepressivo", "Tomar conforme prescrição. Monitoramento regular necessário.", "daily"))
+            add(LibraryMedication("Quetiapina", listOf("25mg", "50mg", "100mg", "200mg"), "antipsicotico", "Tomar à noite. Pode causar sonolência.", "daily"))
+            add(LibraryMedication("Risperidona", listOf("0,5mg", "1mg", "2mg", "3mg"), "antipsicotico", "Tomar conforme prescrição, 1 ou 2 vezes ao dia.", "daily"))
+            add(LibraryMedication("Olanzapina", listOf("2,5mg", "5mg", "10mg"), "antipsicotico", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
+            add(LibraryMedication("Haloperidol", listOf("1mg", "5mg"), "antipsicotico", "Tomar conforme prescrição. Monitoramento regular necessário.", "daily"))
             add(LibraryMedication("Carbonato de Lítio", listOf("150mg", "300mg"), "antidepressivo", "Tomar com alimentos. Monitorar litiémia regularmente.", "daily"))
             add(LibraryMedication("Vitamina D3", listOf("1.000 UI", "2.000 UI", "7.000 UI"), "vitamina", "Tomar com alimentos que contenham gordura.", "daily"))
             add(LibraryMedication("Vitamina B12 (Cianocobalamina)", listOf("500mcg", "1.000mcg"), "vitamina", "Tomar 1 vez ao dia.", "daily"))
@@ -247,7 +255,6 @@ object MedicationLibrary {
             add(LibraryMedication("Eplerenona", listOf("25mg", "50mg"), "cardiovascular", "Tomar 1 vez ao dia. Monitorar potássio e função renal.", "daily"))
             add(LibraryMedication("Ranolazina", listOf("500mg", "1000mg"), "cardiovascular", "Tomar 2 vezes ao dia. Não partir nem triturar.", "daily"))
             add(LibraryMedication("Canagliflozina", listOf("100mg", "300mg"), "antidiabetico", "Tomar pela manhã antes da primeira refeição.", "daily"))
-            add(LibraryMedication("Empagliflozina", listOf("10mg", "25mg"), "antidiabetico", "Tomar 1 vez ao dia pela manhã, com ou sem alimentos.", "daily"))
             add(LibraryMedication("Semaglutida", listOf("0,25mg", "0,5mg", "1mg"), "antidiabetico", "Injetável: 1 vez por semana, no mesmo dia. Oral: 1 vez ao dia em jejum com água.", "weekly"))
             add(LibraryMedication("Dulaglutida", listOf("0,75mg", "1,5mg"), "antidiabetico", "Injetável subcutâneo 1 vez por semana, no mesmo dia da semana.", "weekly"))
             add(LibraryMedication("Insulina Aspart", listOf("100 UI/mL"), "antidiabetico", "Aplicar imediatamente antes das refeições. Ação rápida.", "daily"))
@@ -267,7 +274,6 @@ object MedicationLibrary {
             add(LibraryMedication("Budesonida Inalatória", listOf("100mcg", "200mcg", "400mcg"), "respiratorio", "2 inalações 2 vezes ao dia. Bochechar após uso.", "daily"))
             add(LibraryMedication("Teofilina", listOf("100mg", "200mg", "300mg"), "respiratorio", "Tomar com alimentos para reduzir irritação gástrica. Monitorar nível sérico.", "daily"))
             add(LibraryMedication("Roflumilaste", listOf("500mcg"), "respiratorio", "Tomar 1 vez ao dia com ou sem alimentos. Para DPOC grave.", "daily"))
-            add(LibraryMedication("Montelucaste", listOf("4mg", "5mg", "10mg"), "respiratorio", "Tomar à noite. Para asma e rinite alérgica.", "daily"))
             add(LibraryMedication("Trazodona", listOf("50mg", "100mg", "150mg"), "antidepressivo", "Tomar à noite com alimentos. Pode causar sonolência.", "daily"))
             add(LibraryMedication("Nortriptilina", listOf("10mg", "25mg", "50mg", "75mg"), "antidepressivo", "Tomar à noite. Iniciar com dose baixa e ajustar gradualmente.", "daily"))
             add(LibraryMedication("Imipramina", listOf("10mg", "25mg", "75mg"), "antidepressivo", "Tomar conforme prescrito. Efeito completo em 2 a 4 semanas.", "daily"))
@@ -275,9 +281,7 @@ object MedicationLibrary {
             add(LibraryMedication("Vortioxetina", listOf("5mg", "10mg", "20mg"), "antidepressivo", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
             add(LibraryMedication("Agomelatina", listOf("25mg"), "antidepressivo", "Tomar à noite antes de dormir. Monitorar enzimas hepáticas.", "daily"))
             add(LibraryMedication("Desvenlafaxina", listOf("50mg", "100mg"), "antidepressivo", "Tomar 1 vez ao dia, com ou sem alimentos. Engolir inteiro.", "daily"))
-            add(LibraryMedication("Aripiprazol", listOf("5mg", "10mg", "15mg", "30mg"), "antidepressivo", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
-            add(LibraryMedication("Alprazolam", listOf("0,25mg", "0,5mg", "1mg"), "antidepressivo", "Tomar conforme prescrito. Medicamento controlado. Não interromper abruptamente.", "daily"))
-            add(LibraryMedication("Clonazepam", listOf("0,5mg", "1mg", "2mg"), "antidepressivo", "Tomar conforme prescrito. Medicamento controlado. Não interromper abruptamente.", "daily"))
+            add(LibraryMedication("Aripiprazol", listOf("5mg", "10mg", "15mg", "30mg"), "antipsicotico", "Tomar 1 vez ao dia, com ou sem alimentos.", "daily"))
             add(LibraryMedication("Diazepam", listOf("2mg", "5mg", "10mg"), "antidepressivo", "Tomar conforme prescrito. Medicamento controlado. Uso por menor tempo possível.", "daily"))
             add(LibraryMedication("Buspirona", listOf("5mg", "10mg"), "antidepressivo", "Tomar 2 a 3 vezes ao dia. Efeito ansiolítico surge após 2 semanas.", "daily"))
             add(LibraryMedication("Betaistina (Betaserc)", listOf("8mg", "16mg", "24mg"), "labirintite", "Tomar com alimentos, 2 a 3 vezes ao dia. Tratamento de longa duração.", "daily"))

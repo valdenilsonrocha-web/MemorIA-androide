@@ -331,7 +331,7 @@ private fun DashStat(
 @Composable
 private fun DashboardAdBanner(onOpenPlans: () -> Unit) = AdOnlyFreeBanner(
     title = "Cuide melhor da sua saúde com o Plano Premium",
-    body = "Remova anúncios, receba relatórios avançados e libere funções exclusivas.",
+    body = "Cadastre medicamentos ilimitados, receba relatórios avançados e libere funções exclusivas.",
     buttonText = "Ver Planos",
     onOpenPlans = onOpenPlans,
 )

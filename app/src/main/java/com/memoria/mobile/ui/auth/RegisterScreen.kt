@@ -181,8 +181,8 @@ fun RegisterScreen(
             ) {
                 Checkbox(checked = lgpdConsent, onCheckedChange = { lgpdConsent = it })
                 Text(
-                    "Aceito compartilhar meus dados com o sistema de saúde pública para fins de " +
-                        "monitoramento e estatísticas (LGPD)",
+                    "Li e aceito a Política de Privacidade e autorizo o tratamento dos meus dados, " +
+                        "inclusive de saúde, para o funcionamento do MemorIA (LGPD)",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                 )

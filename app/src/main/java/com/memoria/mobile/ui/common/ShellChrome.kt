@@ -388,8 +388,9 @@ private fun ShareButton(shareUrl: String?) {
 
 /**
  * `#trialExpiryBanner` (`.trial-expiry-banner`): amber card at the top of the
- * page while a card trial has under a day left — hourglass, the countdown text
- * and a "Gerenciar assinatura" button that opens Planos.
+ * page while the server's free Premium access has under a day left — hourglass,
+ * the countdown text and a "Ver planos" button that opens Planos. Nothing is
+ * charged when it ends: Premium only continues if the user subscribes.
  */
 @Composable
 fun TrialExpiryBanner(hoursLeft: Int, onManage: () -> Unit) {
@@ -413,7 +414,7 @@ fun TrialExpiryBanner(hoursLeft: Int, onManage: () -> Unit) {
             modifier = Modifier.size(22.dp),
         )
         Text(
-            "Seu teste grátis termina em ${hoursLeft}h. A cobrança começa automaticamente após esse período.",
+            "Seu acesso Premium gratuito termina em ${hoursLeft}h. Para continuar com o Premium, assine em Planos.",
             fontSize = 14.sp,
             color = Color(0xFF1F2937),
             modifier = Modifier.weight(1f),
@@ -430,7 +431,7 @@ fun TrialExpiryBanner(hoursLeft: Int, onManage: () -> Unit) {
         ) {
             // Até 128dp: quebra entre as duas palavras em vez de esmagar o aviso ao lado.
             FitText(
-                "Gerenciar assinatura",
+                "Ver planos",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1F2937),

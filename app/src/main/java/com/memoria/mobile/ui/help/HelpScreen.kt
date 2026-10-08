@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lightbulb
@@ -57,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import com.memoria.mobile.ui.common.PageGuide
 import com.memoria.mobile.ui.common.PageTitle
 import com.memoria.mobile.ui.common.PageTopGuide
+import com.memoria.mobile.ui.common.PlanLimits
 import com.memoria.mobile.ui.common.SectionCard
 import kotlinx.coroutines.launch
 
@@ -89,24 +89,34 @@ private val TUTORIAL_STEPS = listOf(
     ),
 )
 
-// Perguntas e respostas da web, palavra por palavra (index.html `.faq-list`).
+// Perguntas e respostas da web (index.html `.faq-list`). As que falavam de navegador,
+// de uso "completamente offline" e de app "100% gratuito" foram reescritas para o app
+// nativo: dados no servidor e no celular, Premium opcional pela Google Play.
 private val FAQ = listOf(
     "Como adiciono múltiplos horários para um medicamento?" to
         "No formulário de adicionar medicamento, após preencher o primeiro horário, clique em " +
         "**\"Adicionar Horário\"** para incluir mais horários no mesmo dia.",
     "O que fazer se não recebo notificações?" to
-        "Verifique se você permitiu notificações nas configurações do navegador. Vá em " +
+        "Verifique se você permitiu as notificações do MemorIA nas configurações do celular. Vá em " +
         "Configurações > Ativar Notificações e siga as instruções.",
     "Como edito um medicamento já cadastrado?" to
         "Na tela inicial, clique no medicamento que deseja editar para ver os detalhes. Depois " +
         "clique em **\"Editar\"**.",
     "Posso usar o aplicativo sem internet?" to
-        "Sim! O MemorIA funciona completamente offline. Todos os dados ficam salvos no seu navegador.",
+        "Em parte. Seus dados ficam salvos no servidor do MemorIA e neste celular. Os lembretes já " +
+        "agendados continuam tocando sem conexão, e as doses marcadas como tomadas ficam guardadas " +
+        "no celular até serem enviadas. Para entrar na conta e sincronizar seus dados, é preciso " +
+        "estar conectado à internet.",
     "Como faço backup dos meus dados?" to
         "Vá em Configurações e clique em **\"Exportar Dados\"**. Isso criará um arquivo com " +
         "todas as suas informações.",
     "O aplicativo é gratuito?" to
-        "Sim! O MemorIA é 100% gratuito e de código aberto. Não há custos nem taxas.",
+        "O MemorIA tem um plano gratuito, que permite cadastrar até ${PlanLimits.FREE_MEDICATIONS} " +
+        "medicamentos e ${PlanLimits.FREE_CONTACTS} contato de emergência. Ao entrar pela primeira " +
+        "vez, você tem 7 dias de acesso Premium sem custo; quando eles acabam, nada é cobrado e a " +
+        "conta continua no plano gratuito. O **MemorIA Premium** é uma assinatura opcional, com " +
+        "renovação automática, paga pela Google Play — os preços aparecem na tela **Planos**. Você " +
+        "pode gerenciar ou cancelar a assinatura a qualquer momento na sua conta Google Play.",
 )
 
 private val TIPS = listOf(
@@ -118,7 +128,6 @@ private val TIPS = listOf(
 )
 
 private const val SUPPORT_EMAIL = "contato@brasmaster.com.br"
-private const val SUPPORT_WHATSAPP = "https://wa.me/5511999999999"
 
 /** "Ajuda e Tutorial" — the web `helpPage`. */
 @Composable
@@ -255,13 +264,6 @@ fun HelpScreen(onBack: () -> Unit) {
                     ) {
                         Icon(Icons.Filled.Email, contentDescription = null)
                         Text("  $SUPPORT_EMAIL")
-                    }
-                    Button(
-                        onClick = { open(Intent(Intent.ACTION_VIEW, Uri.parse(SUPPORT_WHATSAPP))) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                        Text("  Falar pelo WhatsApp")
                     }
                 }
             }

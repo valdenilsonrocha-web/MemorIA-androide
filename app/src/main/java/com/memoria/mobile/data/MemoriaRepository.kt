@@ -7,8 +7,6 @@ import com.memoria.mobile.data.remote.ApiProvider
 import com.memoria.mobile.data.remote.ApiService
 import com.memoria.mobile.data.remote.AuthData
 import com.memoria.mobile.data.remote.Caregiver
-import com.memoria.mobile.data.remote.CardInput
-import com.memoria.mobile.data.remote.CardTokenizer
 import com.memoria.mobile.data.remote.ConsentRequest
 import com.memoria.mobile.data.remote.ConsultationPayload
 import com.memoria.mobile.data.remote.ForgotPasswordRequest
@@ -17,9 +15,6 @@ import com.memoria.mobile.data.remote.VitalSignsPayload
 import com.memoria.mobile.data.remote.VoiceAssistantConfig
 import com.memoria.mobile.data.remote.VoiceAssistantDispatchData
 import com.memoria.mobile.data.remote.VoiceAssistantDispatchRequest
-import com.memoria.mobile.data.remote.SubscribeRequest
-import com.memoria.mobile.data.remote.SubscriptionStatusData
-import com.memoria.mobile.data.remote.SubscriptionStatusRequest
 import com.memoria.mobile.data.remote.Envelope
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.HistoryRequest
@@ -29,7 +24,6 @@ import com.memoria.mobile.data.remote.MedicationRequest
 import com.memoria.mobile.data.local.CredentialStore
 import com.memoria.mobile.data.local.LocalStore
 import com.memoria.mobile.data.remote.OwnerStats
-import com.memoria.mobile.data.remote.PaymentConfig
 import com.memoria.mobile.data.remote.Prescription
 import com.memoria.mobile.data.remote.PrescriptionRequest
 import com.memoria.mobile.data.remote.ProfileUpdateRequest
@@ -75,9 +69,6 @@ class MemoriaRepository(
 
     /** Keystore-encrypted CPF + password, for the "remember me" login. */
     val credentials: CredentialStore = CredentialStore(prefs)
-
-    /** Card-to-token exchange with Mercado Pago, on its own unauthenticated client. */
-    private val cardTokenizer = CardTokenizer()
 
     /**
      * Fired whenever something that affects the reminder schedule changes — a
@@ -456,13 +447,6 @@ class MemoriaRepository(
         envelopeValue(api().verifyGooglePlayPurchase(com.memoria.mobile.data.remote.GooglePlayPurchaseRequest(token))) { it }
     }
 
-    // ---- Plans / payments ----
-
-    suspend fun paymentConfig(): ApiResult<PaymentConfig> = call {
-        val r = api().paymentConfig()
-        envelopeValue(r) { it }
-    }
-
     // ---- Admin ----
 
     suspend fun ownerStats(): ApiResult<OwnerStats> = call {
@@ -473,43 +457,10 @@ class MemoriaRepository(
     // ---- Assinatura ----
 
     /**
-     * Subscribes with a card the app already turned into a Mercado Pago token.
-     *
-     * The whole flow is native: the card is typed on a MemorIA screen, swapped
-     * for a token directly with Mercado Pago on the device, and only the token
-     * travels to the MemorIA backend — which rejects the request outright if it
-     * ever carries card fields. No browser, no website, no page in between.
+     * Cancels a subscription contracted outside Google Play, before the app moved
+     * to Google Play Billing. Google Play subscriptions are managed in the user's
+     * Play account instead.
      */
-    suspend fun subscribeWithCard(
-        plan: String,
-        cardTokenId: String,
-        payerEmail: String,
-    ): ApiResult<SubscriptionStatusData> = call {
-        val r = api().subscribeWithCard(
-            SubscribeRequest(
-                plan = plan,
-                cardTokenId = cardTokenId,
-                payerEmail = payerEmail.trim(),
-            )
-        )
-        envelopeValue(r) { it }
-    }
-
-    /** Tokenises a card on the device; the number never reaches this backend. */
-    suspend fun tokenizeCard(publicKey: String, card: CardInput): Result<String> =
-        cardTokenizer.tokenize(publicKey, card)
-
-    /**
-     * Confirms with the gateway whether the subscription went through.
-     *
-     * A 402 here is not a failure to report — it is Mercado Pago saying "not
-     * confirmed yet", which is the normal answer in the seconds after checkout.
-     */
-    suspend fun subscriptionStatus(sessionId: String): ApiResult<SubscriptionStatusData> = call {
-        val r = api().subscriptionStatus(SubscriptionStatusRequest(sessionId = sessionId))
-        envelopeValue(r) { it }
-    }
-
     suspend fun cancelSubscription(): ApiResult<Unit> = call {
         simpleResult(api().cancelSubscription())
     }

@@ -32,7 +32,7 @@ class ShellViewModel(private val repo: MemoriaRepository) : ViewModel() {
     private val _pendingCount = MutableStateFlow(0)
 
     /**
-     * Hours left in a card trial when it ends within 24h — the web's
+     * Hours left in the free 7-day Premium access when it ends within 24h — the web's
      * `#trialExpiryBanner` (`updateTrialExpiryBanner`). Null hides the banner.
      */
     private val _trialHoursLeft = MutableStateFlow<Int?>(null)
@@ -83,9 +83,9 @@ class ShellViewModel(private val repo: MemoriaRepository) : ViewModel() {
 }
 
 /**
- * `updateTrialExpiryBanner()`: only a trial still running (the web also requires
- * a card payment method — a trial on the server always has one) that ends in
- * the next 24 hours; rounded up, never below 1h.
+ * `updateTrialExpiryBanner()`: only a trial still running that ends in the next
+ * 24 hours; rounded up, never below 1h. The trial is the server's free access
+ * from the first login (`getUserTrialInfo`): no card, nothing charged when it ends.
  */
 private fun trialHoursLeft(user: com.memoria.mobile.data.remote.User): Int? {
     if (!user.isTrialActive) return null

@@ -120,7 +120,7 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
             }
             !lgpdConsent -> {
                 _state.update { it.copy(
-                    error = "É necessário aceitar os termos de compartilhamento de dados.",
+                    error = "É necessário aceitar a Política de Privacidade e autorizar o tratamento dos dados.",
                 ) }
                 return
             }

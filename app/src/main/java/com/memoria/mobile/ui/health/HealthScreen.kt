@@ -133,10 +133,10 @@ private data class CareLevel(
 )
 
 private val CARE_LEVELS = listOf(
-    CareLevel(1, "Nível 1", "Independente — alertas básicos", Icons.Filled.CheckCircle, Color(0xFFDCFCE7), Color(0xFF166534)),
-    CareLevel(2, "Nível 2", "Monitoramento — avisos ao cuidador", Icons.Filled.Error, Color(0xFFFEF9C3), Color(0xFF854D0E)),
-    CareLevel(3, "Nível 3", "Atenção especial — alertas frequentes", Icons.Filled.Warning, Color(0xFFFFEDD5), Color(0xFF9A3412)),
-    CareLevel(4, "Nível 4", "Cuidado intensivo — notificações de emergência", Icons.Filled.Cancel, Color(0xFFFEE2E2), Color(0xFF991B1B)),
+    CareLevel(1, "Nível 1", "Independente", Icons.Filled.CheckCircle, Color(0xFFDCFCE7), Color(0xFF166534)),
+    CareLevel(2, "Nível 2", "Precisa de acompanhamento", Icons.Filled.Error, Color(0xFFFEF9C3), Color(0xFF854D0E)),
+    CareLevel(3, "Nível 3", "Precisa de atenção especial", Icons.Filled.Warning, Color(0xFFFFEDD5), Color(0xFF9A3412)),
+    CareLevel(4, "Nível 4", "Precisa de cuidado intensivo", Icons.Filled.Cancel, Color(0xFFFEE2E2), Color(0xFF991B1B)),
 )
 
 private val SLEEP_FACES = listOf(
@@ -367,7 +367,7 @@ private fun SafetyPanel(state: HealthUiState, vm: HealthViewModel) {
     }
 
     MetricCard(Icons.Filled.Notifications, Tone.RED, "Escala de Cuidados") {
-        Hint("Defina o nível de atenção necessário. Afeta as notificações e alertas para cuidadores.")
+        Hint("Registre o nível de atenção de que a pessoa precisa.")
         CARE_LEVELS.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 pair.forEach { level ->

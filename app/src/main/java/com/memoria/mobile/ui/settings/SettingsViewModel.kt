@@ -55,7 +55,6 @@ data class SettingsUiState(
     val themePreset: String = ThemePreset.PASTEL_AZUL.id,
     /** "a" (suave) | "b" (alto contraste) — web `reportsGuideVariant`. */
     val reportsGuideVariant: String = "a",
-    val emergencyAlertMode: String = "auto",
     // Relatório automático por e-mail (guardado no servidor)
     val reportEnabled: Boolean = false,
     val reportFrequency: String = "weekly",
@@ -129,7 +128,6 @@ class SettingsViewModel(
             lowStockAlerts = repo.lowStockAlertsEnabled(),
             themePreset = repo.themePreset(),
             reportsGuideVariant = if (repo.local.uiSetting(KEY_REPORTS_VARIANT) == "b") "b" else "a",
-            emergencyAlertMode = repo.emergencyAlertMode(),
             notificationsAllowed = MemoriaNotifications.canPost(app),
             exactAlarmsAllowed = scheduler.canScheduleExact(),
             lastSyncAtMillis = repo.local.uiSetting(KEY_LAST_SYNC)?.toLongOrNull(),
@@ -266,14 +264,6 @@ class SettingsViewModel(
         _state.update { it.copy(reportsGuideVariant = v) }
         viewModelScope.launch {
             repo.local.setUiSetting(KEY_REPORTS_VARIANT, v)
-            _state.update { it.copy(message = SAVED) }
-        }
-    }
-
-    fun setEmergencyAlertMode(mode: String) {
-        _state.update { it.copy(emergencyAlertMode = mode) }
-        viewModelScope.launch {
-            repo.setEmergencyAlertMode(mode)
             _state.update { it.copy(message = SAVED) }
         }
     }
@@ -507,10 +497,10 @@ class SettingsViewModel(
     fun discardExport() { _pendingExport.value = null }
 
     /**
-     * "Apagar tudo" — the web's `storageService.clearAllData()`: wipes what the
-     * device keeps (local records and every setting back to the web defaults)
-     * and nothing on the server; the account and its medications stay. Toast
-     * "🗑️ Todos os dados foram apagados", as on the web.
+     * "Apagar deste celular" — the web's `storageService.clearAllData()`: wipes
+     * what the device keeps (local records and every setting back to the web
+     * defaults) and nothing on the server; the account and its medications stay.
+     * The toast says "deste celular" so it does not read as an account deletion.
      */
     fun clearLocalData() {
         viewModelScope.launch {
@@ -531,7 +521,7 @@ class SettingsViewModel(
             repo.local.setUiSetting(KEY_PROFILE_PHOTO, null)
             scheduler.reschedule()
             loadLocalPreferences()
-            _state.update { it.copy(message = "🗑️ Todos os dados foram apagados") }
+            _state.update { it.copy(message = "🗑️ Dados deste celular apagados") }
         }
     }
 

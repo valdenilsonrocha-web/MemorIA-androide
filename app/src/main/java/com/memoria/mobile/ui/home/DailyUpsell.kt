@@ -39,82 +39,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.memoria.mobile.ui.common.PlanLimits
 import java.time.LocalDate
 
 /** One entry of the web's `showDailyUpsellMessage()` rotation. */
 data class UpsellMessage(val icon: String, val title: String, val desc: String, val features: List<String>)
 
-/** Same 14 messages, same order, as `showDailyUpsellMessage()` in app.js. */
+/**
+ * One message per [com.memoria.mobile.ui.plans.PREMIUM_FEATURES] entry, same order, titled with the same
+ * text: the card may only sell what Premium really unlocks. The web's 14-message
+ * rotation (`showDailyUpsellMessage()`) also promised removal of ads, family
+ * profiles, backup across devices and other things the app does not have.
+ */
 val DAILY_UPSELL_MESSAGES: List<UpsellMessage> = listOf(
     UpsellMessage(
-        "💊", "Medicamentos ilimitados para toda a família",
-        "No plano gratuito você pode cadastrar até 2 medicamentos. Com o Premium, cadastre quantos precisar — para você e para toda a família, sem limites.",
-        listOf("Sem limite de medicamentos", "Perfis familiares", "Lembretes para todos"),
+        "💊", "Cadastro ilimitado de medicações",
+        "No plano gratuito você pode cadastrar até ${PlanLimits.FREE_MEDICATIONS} medicamentos. Com o Premium, cadastre quantos precisar.",
+        listOf("Sem limite de medicamentos", "Plano gratuito: ${PlanLimits.FREE_MEDICATIONS} medicamentos"),
     ),
     UpsellMessage(
-        "🔔", "Alertas para cuidadores via WhatsApp",
-        "Receba uma mensagem no WhatsApp sempre que um medicamento não for tomado no horário. Ideal para acompanhar idosos e familiares à distância.",
-        listOf("Notificação no WhatsApp", "Múltiplos cuidadores", "Alertas em tempo real"),
+        "📊", "Relatórios avançados",
+        "Veja o gráfico de adesão dos últimos 30 dias, suas sequências de dias seguidos e a tendência semanal. Exporte ou compartilhe o relatório para levar ao seu médico.",
+        listOf("Adesão em 30 dias", "Sequências de dias", "Exportar e compartilhar"),
     ),
     UpsellMessage(
-        "📊", "Histórico e relatórios de adesão ao tratamento",
-        "Acompanhe com gráficos detalhados quantos dias seguidos você tomou seus remédios corretamente. Compartilhe o relatório com seu médico.",
-        listOf("Gráfico de adesão", "Sequência de dias", "Exportar para médico"),
+        "👨‍👩‍👧", "Múltiplos contatos de emergência",
+        "Cadastre até ${PlanLimits.PREMIUM_CONTACTS} contatos de emergência no seu perfil. No plano gratuito é permitido apenas ${PlanLimits.FREE_CONTACTS} contato.",
+        listOf("Até ${PlanLimits.PREMIUM_CONTACTS} contatos", "Plano gratuito: ${PlanLimits.FREE_CONTACTS} contato"),
     ),
     UpsellMessage(
-        "📋", "Salve e organize suas receitas médicas",
-        "Fotografe suas receitas e guarde tudo organizado no app. Acesse quando precisar, mesmo sem internet, e nunca volte a perder uma receita.",
-        listOf("Foto das receitas", "Organizado por médico", "Acesso offline"),
+        "🔔", "Alertas para contatos via WhatsApp e e-mail",
+        "Seus contatos podem receber alertas pelo WhatsApp e por e-mail. Pelo WhatsApp, eles são avisados quando uma dose não é confirmada a tempo.",
+        listOf("Alertas no WhatsApp", "Alertas por e-mail"),
     ),
     UpsellMessage(
-        "☁️", "Backup automático e sincronização na nuvem",
-        "Seus medicamentos e histórico ficam salvos na nuvem e sincronizados em todos os seus dispositivos. Nunca perca suas informações.",
-        listOf("Backup automático", "Multi-dispositivo", "Restauração fácil"),
+        "📋", "Armazenamento de receitas por foto no histórico",
+        "Fotografe suas receitas médicas e guarde-as no histórico do app para consultar quando precisar.",
+        listOf("Foto das receitas", "Guardadas no histórico"),
     ),
     UpsellMessage(
-        "🎙️", "Assistente de voz — integração com a Alexa",
-        "Pergunte para a Alexa quais remédios você precisa tomar hoje. Perfeito para quem tem dificuldade de olhar para a tela com frequência.",
-        listOf("Integração Alexa", "Comando por voz", "Lembrete falado"),
+        "☁️", "Sincronização em nuvem das receitas",
+        "As receitas que você salva ficam guardadas na nuvem do MemorIA, junto com a sua conta.",
+        listOf("Receitas na nuvem", "Junto com a sua conta"),
     ),
     UpsellMessage(
-        "🆘", "Modo alerta de emergência",
-        "Em caso de emergência, compartilhe instantaneamente sua lista de medicamentos atuais com socorristas ou médicos com um único toque.",
-        listOf("Compartilhamento rápido", "Dados atualizados", "Toque único"),
-    ),
-    UpsellMessage(
-        "👨‍👩‍👧", "Até 3 contatos de emergência",
-        "Cadastre até 3 contatos que serão notificados automaticamente em caso de emergência. No plano gratuito é permitido apenas 1 contato.",
-        listOf("Até 3 contatos", "Notificação automática", "Plano gratuito: 1 contato"),
-    ),
-    UpsellMessage(
-        "📅", "Agenda de consultas e exames",
-        "Além dos medicamentos, registre suas consultas médicas e exames com lembretes automáticos. Nunca mais esqueça um compromisso de saúde.",
-        listOf("Agenda de consultas", "Lembretes de exames", "Histórico completo"),
-    ),
-    UpsellMessage(
-        "❤️", "Gestão completa da saúde familiar",
-        "Registre pressão arterial, glicemia, peso e muito mais, tudo em um único app para toda a família. Saúde em dia, na palma da mão.",
-        listOf("Pressão arterial", "Glicemia", "Peso e IMC", "Toda a família"),
-    ),
-    UpsellMessage(
-        "🏥", "Acompanhamento de doenças crônicas",
-        "Gerencie tratamentos contínuos de diabetes, hipertensão, colesterol e outras condições com relatórios específicos para cada condição.",
-        listOf("Diabetes", "Hipertensão", "Colesterol", "Relatórios específicos"),
-    ),
-    UpsellMessage(
-        "🔒", "Privacidade total — sem anúncios",
-        "Assine o Premium e remova todos os anúncios do app. Uma experiência limpa e focada, sem distrações na hora de cuidar da sua saúde.",
-        listOf("Sem anúncios", "Experiência limpa", "Dados protegidos"),
-    ),
-    UpsellMessage(
-        "💬", "Notificações personalizadas por medicamento",
-        "Configure mensagens e sons personalizados para cada medicamento. Nunca mais confunda um lembrete com o outro.",
-        listOf("Mensagem personalizada", "Som específico", "Por medicamento"),
-    ),
-    UpsellMessage(
-        "🧬", "Histórico médico completo",
-        "Registre alergias, condições de saúde, tipo sanguíneo e histórico de internações. Tenha tudo pronto para uma emergência ou nova consulta.",
-        listOf("Alergias registradas", "Condições de saúde", "Tipo sanguíneo"),
+        "🎙️", "Integração com Alexa e assistente de voz nas Configurações",
+        "Ative nas Configurações a integração com a Alexa, o Google Assistant ou um webhook e receba o lembrete de cada dose também pelo assistente de voz.",
+        listOf("Alexa", "Google Assistant", "Lembrete por voz"),
     ),
 )
 
