@@ -27,9 +27,9 @@ android {
     defaultConfig {
         applicationId = "com.memoria.mobile"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 15
-        versionName = "5.9"
+        targetSdk = 36
+        versionCode = 16
+        versionName = "5.9.1"
 
         // Default public backend base URL (no trailing slash, WITHOUT /api — the
         // client appends /api, mirroring the web frontend's runtime-config.js).
