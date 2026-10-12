@@ -119,6 +119,21 @@ object MemoriaNotifications {
         return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
+    /** Re-check permission at posting time, including revocation during the call. */
+    fun post(context: Context, id: Int, notification: Notification): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return false
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return false
+        return try {
+            manager.notify(id, notification)
+            true
+        } catch (_: SecurityException) {
+            false
+        }
+    }
+
     /**
      * Builds the dose reminder, with the same three answers the app itself
      * offers so the user never has to open it to record a dose.
@@ -212,7 +227,7 @@ object MemoriaNotifications {
         if (!active) return
         val compat = NotificationManagerCompat.from(context)
         compat.cancel(dose.requestCode)
-        compat.notify(dose.requestCode, buildDoseNotification(context, dose, dose.sound, silenced = true))
+        post(context, dose.requestCode, buildDoseNotification(context, dose, dose.sound, silenced = true))
     }
 
     /**

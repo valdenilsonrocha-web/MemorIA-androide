@@ -49,28 +49,34 @@ class ReminderScheduler(
      * derived from medication + slot.
      */
     suspend fun reschedule() {
-        if (!repository.isLoggedIn()) {
-            cancelAll()
-            return
-        }
         // Consultations live only on the phone, so they are re-armed even when the
         // medication request fails — an offline moment must not silently drop the
         // reminder for tomorrow's appointment.
         scheduleConsultations(repository.local.consultations())
 
+        val loggedIn = repository.isLoggedIn()
         // The last list the server gave is kept on the phone, so a reboot with no
-        // signal (BootReceiver) still re-arms every dose instead of none.
-        val medications = (repository.medications() as? ApiResult.Ok)?.value
-            ?.also { cache(KEY_CACHED_MEDS, medsAdapter, it) }
-            ?: cached(KEY_CACHED_MEDS, medsAdapter)
-            ?: return
+        // signal (BootReceiver) — or a JWT that expired while the app was closed —
+        // still re-arms every dose instead of cancelling the window.
+        val medications = if (loggedIn) {
+            (repository.medications() as? ApiResult.Ok)?.value
+                ?.also { cache(KEY_CACHED_MEDS, medsAdapter, it) }
+                ?: cached(KEY_CACHED_MEDS, medsAdapter)
+        } else {
+            cached(KEY_CACHED_MEDS, medsAdapter)
+        } ?: return
         // Sends the doses answered offline, then treats any still queued as taken
-        // so their alarms are not re-armed.
-        DoseActions.flushPending(repository)
-        val history = ((repository.history(limit = 200) as? ApiResult.Ok)?.value
-            ?.also { cache(KEY_CACHED_HISTORY, historyAdapter, it) }
-            ?: cached(KEY_CACHED_HISTORY, historyAdapter).orEmpty()) +
-            DoseActions.pendingHistory(repository)
+        // so their alarms are not re-armed. Without a session the queue stays put
+        // (a 401 used to drop it) until expireSession logs back in.
+        if (loggedIn) DoseActions.flushPending(repository)
+        val remoteHistory = if (loggedIn) {
+            (repository.history(limit = 200) as? ApiResult.Ok)?.value
+                ?.also { cache(KEY_CACHED_HISTORY, historyAdapter, it) }
+                ?: cached(KEY_CACHED_HISTORY, historyAdapter).orEmpty()
+        } else {
+            cached(KEY_CACHED_HISTORY, historyAdapter).orEmpty()
+        }
+        val history = remoteHistory + DoseActions.pendingHistory(repository)
         val active = medications.filter { it.active }
         val extras = repository.local.medicationExtras()
         scheduleFrom(active, history, repository.snoozeMinutes(), repository.reminderSound(), extras)

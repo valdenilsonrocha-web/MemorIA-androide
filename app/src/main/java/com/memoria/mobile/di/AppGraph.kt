@@ -35,9 +35,15 @@ class AppGraph(context: Context) {
             scope.launch { reminderScheduler.reschedule() }
         }
 
-        // A token the server rejects ends the session here, once, for every
-        // endpoint. Clearing the stored token makes `tokenFlow` emit null, which
-        // is what sends the UI back to the login screen — see MemoriaNav.
+        // Explicit logout (or expiry with nothing to log back in as) must cancel
+        // alarms. Token expiry with saved credentials must NOT — see expireSession.
+        repository.onLoggedOut = {
+            scope.launch { reminderScheduler.cancelAll() }
+        }
+
+        // A token the server rejects is refreshed here, once, for every endpoint.
+        // expireSession logs back in with the saved CPF+password when it can, so
+        // the weekly JWT expiry does not wipe the reminder window.
         session.onUnauthorized = {
             scope.launch { repository.expireSession() }
         }

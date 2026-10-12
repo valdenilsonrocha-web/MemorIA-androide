@@ -3,6 +3,7 @@ package com.memoria.mobile.reminders
 import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.data.MemoriaRepository
 import com.memoria.mobile.data.remote.HistoryEntry
+import com.memoria.mobile.data.remote.SessionRefresh
 import com.memoria.mobile.data.remote.HistoryRequest
 import com.memoria.mobile.data.remote.MedicationRequest
 import com.memoria.mobile.ui.common.Schedule
@@ -68,7 +69,7 @@ object DoseActions {
                 decrementStock(repo, medicationId)
                 result
             }
-            result is ApiResult.Err && isNetworkFailure(result.message) -> {
+            result is ApiResult.Err && SessionRefresh.isRetryableFailure(result.message) -> {
                 enqueue(repo, request)
                 ApiResult.Ok(Unit)
             }
@@ -89,7 +90,7 @@ object DoseActions {
                 is ApiResult.Err -> {
                     // Still offline: keep this one and the rest for later. A
                     // server-side refusal would never succeed, so it is dropped.
-                    if (isNetworkFailure(r.message)) {
+                    if (SessionRefresh.isRetryableFailure(r.message)) {
                         offline = true
                         left += req
                     }
@@ -124,14 +125,6 @@ object DoseActions {
     private suspend fun writeQueue(repo: MemoriaRepository, items: List<HistoryRequest>) {
         runCatching { repo.local.setUiSetting(QUEUE_KEY, if (items.isEmpty()) null else adapter.toJson(items)) }
     }
-
-    /**
-     * The repository's connection messages all point the user at the “Servidor”
-     * address or mention the connection; a server answer (4xx/5xx) does not.
-     */
-    private fun isNetworkFailure(message: String): Boolean =
-        message.contains("“Servidor”") || message.contains("ligação", ignoreCase = true) ||
-            message.contains("Falha de rede")
 
     /** `stock - 1`, only while there is stock — exactly `markAsTaken()` on the web. */
     private suspend fun decrementStock(repo: MemoriaRepository, medicationId: String) {

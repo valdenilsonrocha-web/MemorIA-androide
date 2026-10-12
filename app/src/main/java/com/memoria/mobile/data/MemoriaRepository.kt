@@ -28,12 +28,16 @@ import com.memoria.mobile.data.remote.Prescription
 import com.memoria.mobile.data.remote.PrescriptionRequest
 import com.memoria.mobile.data.remote.ProfileUpdateRequest
 import com.memoria.mobile.data.remote.RegisterRequest
+import com.memoria.mobile.data.remote.ExpiryPlan
+import com.memoria.mobile.data.remote.SessionRefresh
 import com.memoria.mobile.data.remote.SessionState
 import com.memoria.mobile.data.remote.SimpleResponse
 import com.memoria.mobile.data.remote.User
 import com.squareup.moshi.JsonDataException
 import com.squareup.moshi.JsonEncodingException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import retrofit2.Response
 import java.io.IOException
 import java.io.InterruptedIOException
@@ -78,6 +82,25 @@ class MemoriaRepository(
     @Volatile
     var onScheduleChanged: (() -> Unit)? = null
 
+    /**
+     * Fired on an explicit logout (Settings › Sair) or when the token dies and
+     * there are no saved credentials to log back in with. Wired to
+     * [com.memoria.mobile.reminders.ReminderScheduler.cancelAll] — expiry with
+     * saved credentials must NOT go through here, or the weekly JWT rotation
+     * would wipe every alarm.
+     */
+    @Volatile
+    var onLoggedOut: (() -> Unit)? = null
+
+    private val sessionMutex = Mutex()
+
+    /** After a wrong-password silent refresh, do not keep hammering /auth/login. */
+    @Volatile
+    private var silentRefreshBlocked = false
+
+    @Volatile
+    private var lastSilentRefreshAt = 0L
+
     val tokenFlow: Flow<String?> = prefs.tokenFlow
     val baseUrlFlow: Flow<String?> = prefs.baseUrlFlow
 
@@ -121,36 +144,67 @@ class MemoriaRepository(
     }
 
     /**
+     * Ends the session because the SERVER rejected the token, not because the user
+     * asked. If this phone still has the CPF and password, logs back in silently
+     * so the 7-day JWT expiry does not cancel the reminder window — the person
+     * this app is built for will not open it just to refresh a token.
+     *
+     * The dead token is left in place while the refresh runs, so the UI does not
+     * flash the login screen on a successful refresh. A network failure also
+     * leaves token and alarms alone and retries on the next 401.
+     *
+     * Idempotent: several in-flight requests fail together when a token dies.
+     */
+    suspend fun expireSession() = sessionMutex.withLock {
+        val plan = SessionRefresh.plan(
+            rememberEnabled = credentials.rememberEnabled(),
+            hasSavedCredentials = credentials.hasSaved(),
+            refreshBlocked = silentRefreshBlocked,
+        )
+        when (plan) {
+            ExpiryPlan.SilentRefresh -> {
+                val now = System.currentTimeMillis()
+                if (session.token != null && now - lastSilentRefreshAt < SessionRefresh.RETRY_COOLDOWN_MS) {
+                    return@withLock
+                }
+                lastSilentRefreshAt = now
+                when (val result = loginWithSavedCredentials()) {
+                    is ApiResult.Ok -> return@withLock
+                    is ApiResult.Err -> {
+                        if (SessionRefresh.looksLikeNetworkError(result.message)) return@withLock
+                        silentRefreshBlocked = true
+                        dropToken()
+                    }
+                }
+            }
+            ExpiryPlan.DropTokenKeepAlarms -> dropToken()
+            ExpiryPlan.DropTokenCancelAlarms -> {
+                dropToken()
+                onLoggedOut?.invoke()
+            }
+        }
+    }
+
+    /**
      * Ends the session but deliberately KEEPS the remembered credentials, so a
      * user who logs out can get back in without retyping. Handing the phone to
      * someone else is the case that wants them gone — [forgetCredentials] does
      * that, and Settings puts it next to the logout button.
      */
-    /**
-     * Ends the session because the SERVER rejected the token, not because the user
-     * asked. Keeps the remembered CPF and password on purpose: a token that
-     * expired after its 7 days is not a reason to make someone retype credentials
-     * they already trusted this phone with — the login screen comes pre-filled and
-     * getting back in is one tap.
-     *
-     * Idempotent: several requests can fail at once when a token dies, and each
-     * one calls this.
-     */
-    suspend fun expireSession() {
+    suspend fun logout() {
+        sessionMutex.withLock {
+            silentRefreshBlocked = false
+            dropToken()
+        }
+        // Clears every pending alarm: a logged-out phone must not keep buzzing
+        // about someone else's medication.
+        onLoggedOut?.invoke()
+    }
+
+    private suspend fun dropToken() {
         if (session.token == null && prefs.token() == null) return
         session.token = null
         prefs.clearToken()
-        // Cancels every pending alarm: a logged-out phone must not keep buzzing
-        // about medication it can no longer record.
-        onScheduleChanged?.invoke()
-    }
-
-    suspend fun logout() {
-        session.token = null
-        prefs.clearToken()
-        // Clears every pending alarm: a logged-out phone must not keep buzzing
-        // about someone else's medication.
-        onScheduleChanged?.invoke()
     }
 
     /** Wipes the saved CPF + password (Settings → "Esquecer dados salvos"). */
@@ -211,8 +265,11 @@ class MemoriaRepository(
      */
     suspend fun login(cpf: String, password: String): ApiResult<User> {
         val result = authCall { api().login(LoginRequest(cpf = digitsOnly(cpf), password = password)) }
-        if (result is ApiResult.Ok && credentials.rememberEnabled()) {
-            credentials.save(cpf, password, name = result.value.name)
+        if (result is ApiResult.Ok) {
+            silentRefreshBlocked = false
+            if (credentials.rememberEnabled()) {
+                credentials.save(cpf, password, name = result.value.name)
+            }
         }
         // A new session means a new schedule to arm.
         return result.alsoReschedule()

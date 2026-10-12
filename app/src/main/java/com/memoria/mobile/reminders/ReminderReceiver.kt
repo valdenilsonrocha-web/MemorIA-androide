@@ -66,7 +66,8 @@ class ReminderReceiver : BroadcastReceiver() {
             Log.w(TAG, "Sem permissão de notificação; consulta de ${alarm.professional} não mostrada")
             return
         }
-        NotificationManagerCompat.from(context).notify(
+        MemoriaNotifications.post(
+            context,
             alarm.requestCode,
             MemoriaNotifications.buildConsultationNotification(
                 context = context,
@@ -85,7 +86,8 @@ class ReminderReceiver : BroadcastReceiver() {
             Log.w(TAG, "Sem permissão de notificação; estoque de ${alarm.medicationName} não avisado")
             return
         }
-        NotificationManagerCompat.from(context).notify(
+        MemoriaNotifications.post(
+            context,
             alarm.requestCode,
             MemoriaNotifications.buildLowStockNotification(context, alarm),
         )
@@ -93,12 +95,12 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private fun fire(context: Context, app: MemoriaApp, dose: DoseAlarm) {
         MemoriaNotifications.ensureChannels(context)
-        if (MemoriaNotifications.canPost(context)) {
-            NotificationManagerCompat.from(context)
-                .notify(
-                    dose.requestCode,
-                    MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
-                )
+        if (MemoriaNotifications.post(
+                context,
+                dose.requestCode,
+                MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
+            )
+        ) {
             scheduleSilence(context, dose)
             // Phone in use: the full-screen intent would only be a small heads-up.
             com.memoria.mobile.ReminderAlertActivity.launchNow(context, dose)
@@ -106,7 +108,7 @@ class ReminderReceiver : BroadcastReceiver() {
             Log.w(TAG, "Sem permissão de notificação; lembrete de ${dose.medicationName} não mostrado")
         }
         // Firing consumes one alarm from the window, so top the window back up.
-        background(this) { app.graph.reminderScheduler.reschedule() }
+        background(this, app) { app.graph.reminderScheduler.reschedule() }
     }
 
     /**
@@ -167,7 +169,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 null
             },
         )
-        background(this) {
+        background(this, app) {
             val repo = app.graph.repository
             // "Tomei" also takes one unit off the stock, like the web's markAsTaken().
             val result = if (status == "taken") {
@@ -205,13 +207,20 @@ class ReminderReceiver : BroadcastReceiver() {
      * Keeps the receiver alive while the coroutine runs. A BroadcastReceiver is
      * killable the instant [onReceive] returns, so without goAsync the network
      * call would be torn down mid-flight.
+     *
+     * An alarm usually wakes a fresh process in which nothing has loaded the
+     * session yet. Without `bootstrap()` the scheduler sees no token and cancels
+     * every pending alarm, and the dose answer goes out unauthenticated.
      */
-    private fun background(receiver: BroadcastReceiver, block: suspend () -> Unit) {
+    private fun background(receiver: BroadcastReceiver, app: MemoriaApp, block: suspend () -> Unit) {
         val pending = receiver.goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 // The OS gives a receiver ~10s; bail out before it kills us.
-                withTimeoutOrNull(WORK_TIMEOUT_MS) { block() }
+                withTimeoutOrNull(WORK_TIMEOUT_MS) {
+                    app.graph.repository.bootstrap()
+                    block()
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Falha ao processar o lembrete", e)
             } finally {

@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.remote.Caregiver
 import com.memoria.mobile.ui.common.LoadingBox
+import com.memoria.mobile.util.BrazilianPhone
 import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.repoViewModel
 
@@ -218,8 +219,6 @@ private fun CaregiverCard(caregiver: Caregiver, onRemove: () -> Unit) {
 }
 
 private fun openWhatsApp(context: android.content.Context, phone: String) {
-    val digits = phone.filter { it.isDigit() }
-    val normalized = if (digits.startsWith("55")) digits else "55$digits"
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$normalized"))
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(BrazilianPhone.waMeUrl(phone)))
     runCatching { context.startActivity(intent) }
 }

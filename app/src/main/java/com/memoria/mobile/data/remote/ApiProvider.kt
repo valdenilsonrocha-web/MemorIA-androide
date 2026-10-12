@@ -134,12 +134,15 @@ class ApiProvider(private val session: SessionState) {
      * means no future endpoint can forget to handle it.
      */
     private fun authInterceptor() = Interceptor { chain ->
-        val builder = chain.request().newBuilder()
+        val request = chain.request()
+        val builder = request.newBuilder()
         val token = session.token?.takeIf { it.isNotBlank() }
-        token?.let { builder.header("Authorization", "Bearer $it") }
+        val attach = token != null && SessionRefresh.shouldAttachAuthHeader(request.url.encodedPath)
+        if (attach) builder.header("Authorization", "Bearer $token")
 
         val response = chain.proceed(builder.build())
-        if (response.code == 401 && token != null) {
+        // A 401 on login is wrong CPF/password — never "session over".
+        if (response.code == 401 && attach) {
             session.onUnauthorized?.invoke()
         }
         response
