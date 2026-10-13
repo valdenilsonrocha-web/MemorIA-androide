@@ -15,6 +15,13 @@ import com.memoria.mobile.data.remote.User
  */
 object PlanLimits {
 
+    /**
+     * Interruptor temporário: com isto ligado, uma conta gratuita tem os mesmos
+     * recursos que o Premium (medicamentos, contatos, receitas, relatórios,
+     * farmácia, Alexa). Voltar a `false` restaura os limites do plano.
+     */
+    const val FREE_HAS_ALL_FEATURES = true
+
     /** Contas gratuitas (após o período de teste de 7 dias) guardam 2 medicamentos; Premium/Trial é ilimitado. */
     const val FREE_MEDICATIONS = 2
 
@@ -22,7 +29,11 @@ object PlanLimits {
     const val FREE_CONTACTS = 1
     const val PREMIUM_CONTACTS = 3
 
-    fun hasFullAccess(user: User?): Boolean = user?.isPremium == true
+    fun hasFullAccess(user: User?): Boolean = FREE_HAS_ALL_FEATURES || user?.isPremium == true
+
+    /** Cópia usada nas respostas do servidor, para os ecrãs que leem `user.isPremium` directo. */
+    fun User.withTemporaryFullAccess(): User =
+        if (FREE_HAS_ALL_FEATURES) copy(isPremium = true, trialExpired = false) else this
 
     fun maxMedications(user: User?): Int =
         if (hasFullAccess(user)) Int.MAX_VALUE else FREE_MEDICATIONS

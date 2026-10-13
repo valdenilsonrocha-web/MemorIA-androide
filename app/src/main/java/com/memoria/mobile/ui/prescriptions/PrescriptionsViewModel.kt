@@ -26,8 +26,9 @@ data class PrescriptionsUiState(
     val message: String? = null,
     val user: User? = null,
     val prescriptions: List<Prescription> = emptyList(),
+    val readings: Map<String, String> = emptyMap(),
 ) {
-    val isPremium: Boolean get() = user?.isPremium == true
+    val isPremium: Boolean get() = PlanLimits.hasFullAccess(user)
 }
 
 class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() {
@@ -39,11 +40,13 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         _state.update { it.copy(loading = true, error = null) }
         viewModelScope.launch {
             val user = (repo.me() as? ApiResult.Ok)?.value
+            val readings = repo.local.prescriptionReadings().associate { it.prescriptionId to it.text }
             when (val r = repo.prescriptions()) {
                 is ApiResult.Ok -> _state.update { it.copy(
                     loading = false,
                     user = user,
                     prescriptions = r.value,
+                    readings = readings,
                 ) }
                 is ApiResult.Err -> _state.update { it.copy(
                     loading = false,
@@ -63,16 +66,30 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
             _state.update { it.copy(error = "⭐ Recurso premium: ative o Premium para salvar receitas.") }
             return
         }
-        _state.update { it.copy(uploading = true) }
+        _state.update { it.copy(uploading = true, error = null) }
         viewModelScope.launch {
             val data = withContext(Dispatchers.Default) { runCatching(encode).getOrNull() }
-            _state.update { it.copy(uploading = false) }
-            upload(data, fileName)
+            if (data == null) {
+                _state.update { it.copy(
+                    uploading = false,
+                    error = "❌ Não foi possível processar a imagem da receita.",
+                ) }
+                return@launch
+            }
+            val text = withContext(Dispatchers.Default) {
+                val bitmap = decodeDataUrl(data) ?: return@withContext ""
+                try {
+                    PrescriptionOcr.read(bitmap)
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+            upload(data, fileName, text)
         }
     }
 
     /** [imageData] is the `data:image/jpeg;base64,...` URL produced by the encoder. */
-    fun upload(imageData: String?, fileName: String? = null) {
+    fun upload(imageData: String?, fileName: String? = null, ocrText: String = "") {
         // Paid feature, same as on the website, and the backend does not gate it
         // — without this check the phone gave away what the site charges for.
         if (!PlanLimits.canStorePrescriptions(_state.value.user)) {
@@ -90,15 +107,25 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
             // `file.name || 'receita.jpg'` na web: o nome do ficheiro escolhido.
             fileName = fileName?.takeIf { it.isNotBlank() } ?: "receita-${System.currentTimeMillis()}.jpg",
             imageData = imageData,
+            ocrText = ocrText.ifBlank { null },
             capturedAt = OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME),
         )
         viewModelScope.launch {
             when (val r = repo.createPrescription(request)) {
                 is ApiResult.Ok -> {
+                    val saved = r.value
+                    val id = saved.id
+                    if (id != null && ocrText.isNotBlank()) repo.local.savePrescriptionReading(id, ocrText)
+                    val shown = ocrText.ifBlank { saved.ocrText }
                     _state.update { it.copy(
                         uploading = false,
-                        prescriptions = listOf(r.value) + _state.value.prescriptions,
-                        message = "✅ Receita salva no histórico premium.",
+                        prescriptions = listOf(saved) + _state.value.prescriptions,
+                        readings = if (id != null && shown.isNotBlank()) {
+                            _state.value.readings + (id to shown)
+                        } else {
+                            _state.value.readings
+                        },
+                        message = if (shown.isNotBlank()) "✅ Receita salva e lida." else "✅ Receita salva. O texto não foi reconhecido.",
                     ) }
                 }
                 is ApiResult.Err ->
@@ -111,11 +138,15 @@ class PrescriptionsViewModel(private val repo: MemoriaRepository) : ViewModel() 
         val id = prescription.id ?: return
         viewModelScope.launch {
             when (val r = repo.deletePrescription(id)) {
-                is ApiResult.Ok -> _state.update { it.copy(
+            is ApiResult.Ok -> {
+                repo.local.deletePrescriptionReading(id)
+                _state.update { it.copy(
                     prescriptions = _state.value.prescriptions.filterNot { it.id == id },
+                    readings = _state.value.readings - id,
                     message = "🗑️ Receita removida do histórico.",
                 ) }
-                is ApiResult.Err -> _state.update { it.copy(error = r.message) }
+            }
+            is ApiResult.Err -> _state.update { it.copy(error = r.message) }
             }
         }
     }

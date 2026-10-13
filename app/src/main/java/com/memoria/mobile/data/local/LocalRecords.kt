@@ -128,3 +128,10 @@ data class MedicationLook(
     val capsuleColor1: String = "#e5e7eb",
     val capsuleColor2: String = "#2f7dff",
 )
+
+/** Texto que o OCR leu numa foto de receita. O servidor antigo não tem coluna para isto. */
+@JsonClass(generateAdapter = true)
+data class PrescriptionReading(
+    val prescriptionId: String,
+    val text: String,
+)

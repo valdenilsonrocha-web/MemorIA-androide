@@ -179,11 +179,7 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
 
                 item {
                     Text(
-                        if (state.isPremium) {
-                            "Armazene fotos de receitas no histórico para consultar quando precisar."
-                        } else {
-                            "Ative o Premium para armazenar fotos de receitas no histórico."
-                        },
+                        "Tire uma foto da receita. O app guarda a imagem e lê o texto aqui no celular.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -217,7 +213,7 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(strokeWidth = 2.dp)
-                            Text("  Enviando receita...", style = MaterialTheme.typography.bodyLarge)
+                            Text(if (state.uploading) "  Lendo e enviando..." else "  Enviando receita...", style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
@@ -240,7 +236,10 @@ fun PrescriptionsScreen(onBack: () -> Unit, onOpenPlans: () -> Unit) {
                         }
                     }
                     else -> items(state.prescriptions, key = { it.id ?: it.fileName }) { prescription ->
-                        PrescriptionCard(prescription) { toDelete = prescription }
+                        PrescriptionCard(
+                            prescription,
+                            reading = state.readings[prescription.id].orEmpty().ifBlank { prescription.ocrText },
+                        ) { toDelete = prescription }
                     }
                 }
 
@@ -286,7 +285,7 @@ private fun EmptyBlock(message: String, icon: @Composable () -> Unit) {
 
 /** `.prescription-card`: foto, "Arquivo:", "Salva em:" e o botão "Excluir". */
 @Composable
-private fun PrescriptionCard(prescription: Prescription, onDelete: () -> Unit) {
+private fun PrescriptionCard(prescription: Prescription, reading: String, onDelete: () -> Unit) {
     // Decoding is executed asynchronously on Dispatchers.IO so scrolling does not jank.
     var bitmap by remember(prescription.imageData) { androidx.compose.runtime.mutableStateOf<Bitmap?>(null) }
     androidx.compose.runtime.LaunchedEffect(prescription.imageData) {
@@ -323,6 +322,12 @@ private fun PrescriptionCard(prescription: Prescription, onDelete: () -> Unit) {
                 LabeledLine("Arquivo:", prescription.fileName.ifBlank { "receita.jpg" })
                 LabeledLine("Salva em:", savedAt)
             }
+            Text("Leitura da receita", style = MaterialTheme.typography.titleMedium)
+            Text(
+                reading.ifBlank { "A foto foi salva. O texto não foi reconhecido." },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Button(
                 onClick = onDelete,
                 colors = ButtonDefaults.buttonColors(containerColor = RedMiss, contentColor = Color.White),

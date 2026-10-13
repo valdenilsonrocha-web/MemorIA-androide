@@ -1,6 +1,7 @@
 package com.memoria.mobile.data
 
 import com.memoria.mobile.BuildConfig
+import com.memoria.mobile.ui.common.PlanLimits.withTemporaryFullAccess
 import com.memoria.mobile.data.local.PreferencesStore
 import com.memoria.mobile.data.remote.Adherence
 import com.memoria.mobile.data.remote.ApiProvider
@@ -596,7 +597,7 @@ class MemoriaRepository(
                 session.token = body.data.token
                 prefs.setToken(body.data.token)
                 val user = body.data.user
-                if (user != null) ApiResult.Ok(user) else ApiResult.Err("Resposta inválida do servidor.")
+                if (user != null) ApiResult.Ok(user.withTemporaryFullAccess()) else ApiResult.Err("Resposta inválida do servidor.")
             } else {
                 ApiResult.Err(errorMessage(r))
             }
@@ -618,12 +619,16 @@ class MemoriaRepository(
     ): ApiResult<T> {
         val body = response.body()
         return if (response.isSuccessful && body?.success == true) {
-            val value = body.data?.let(extract)
+            val value = body.data?.let(extract)?.let { unlockPlan(it) }
             if (value != null) ApiResult.Ok(value) else ApiResult.Err("Resposta vazia do servidor.")
         } else {
             ApiResult.Err(errorMessage(response))
         }
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> unlockPlan(value: T): T =
+        if (value is User) value.withTemporaryFullAccess() as T else value
 
     private suspend inline fun <T> call(block: suspend () -> ApiResult<T>): ApiResult<T> = try {
         block()

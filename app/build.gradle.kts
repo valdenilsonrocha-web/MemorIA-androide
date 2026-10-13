@@ -28,8 +28,8 @@ android {
         applicationId = "com.memoria.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "5.9.2"
+        versionCode = 18
+        versionName = "5.9.3"
 
         // Default public backend base URL (no trailing slash, WITHOUT /api — the
         // client appends /api, mirroring the web frontend's runtime-config.js).
@@ -118,6 +118,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.mlkit.text.recognition)
 
     debugImplementation(libs.androidx.ui.tooling)
 

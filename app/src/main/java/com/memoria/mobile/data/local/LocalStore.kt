@@ -154,6 +154,23 @@ class LocalStore(private val prefs: PreferencesStore) {
 
     suspend fun setProfileGender(value: String?) = setUiSetting(ProfileHealthKeys.GENDER, value?.trim()?.ifBlank { null })
 
+    suspend fun prescriptionReadings(): List<PrescriptionReading> =
+        read(PRESCRIPTION_READINGS, PrescriptionReading::class.java)
+
+    suspend fun savePrescriptionReading(prescriptionId: String, text: String) {
+        val kept = prescriptionReadings().filterNot { it.prescriptionId == prescriptionId }
+        val next = if (text.isBlank()) kept else kept + PrescriptionReading(prescriptionId, text.trim())
+        write(PRESCRIPTION_READINGS, PrescriptionReading::class.java, next)
+    }
+
+    suspend fun deletePrescriptionReading(prescriptionId: String) {
+        write(
+            PRESCRIPTION_READINGS,
+            PrescriptionReading::class.java,
+            prescriptionReadings().filterNot { it.prescriptionId == prescriptionId },
+        )
+    }
+
     private companion object {
         const val VITAL_SIGNS = "health_vital_signs"
         const val WELLBEING = "health_wellbeing"
@@ -162,6 +179,7 @@ class LocalStore(private val prefs: PreferencesStore) {
         const val CONSULTATIONS = "medical_consultations"
         const val EMERGENCY_CONTACTS = "emergency_contacts"
         const val MEDICATION_EXTRAS = "medication_extras"
+        const val PRESCRIPTION_READINGS = "prescription_readings"
 
         /** Bounded exactly like the web app's `slice(0, 50)`. */
         const val MAX_HEALTH_RECORDS = 50

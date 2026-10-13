@@ -260,6 +260,7 @@ data class Prescription(
     val id: String? = null,
     val fileName: String = "receita.jpg",
     val imageData: String = "",
+    val ocrText: String = "",
     val capturedAt: String? = null,
     val createdAt: String? = null,
 )
@@ -268,6 +269,7 @@ data class Prescription(
 data class PrescriptionRequest(
     val fileName: String,
     val imageData: String,
+    val ocrText: String? = null,
     val capturedAt: String? = null,
 )
 
