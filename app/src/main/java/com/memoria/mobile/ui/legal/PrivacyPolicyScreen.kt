@@ -64,6 +64,10 @@ private val CLAUSES: List<Pair<String, String>> = listOf(
         "cadastro (nome, CPF, e-mail, telefone, cidade/UF e, se informados, Cartão SUS e sexo), " +
         "medicamentos, histórico de doses, " +
         "fotos de receitas, contatos de cuidadores e as informações de saúde que você registrar.",
+    "Agenda do celular" to
+        "com a sua permissão, o app lê os contatos do celular só para listar quem tem WhatsApp " +
+        "quando você toca em \"Importar dos contatos do WhatsApp\". A lista não sai do celular; " +
+        "apenas o contato que você escolher é guardado.",
     "Base legal" to
         "consentimento do titular e execução dos serviços solicitados no aplicativo.",
     "Compartilhamento" to

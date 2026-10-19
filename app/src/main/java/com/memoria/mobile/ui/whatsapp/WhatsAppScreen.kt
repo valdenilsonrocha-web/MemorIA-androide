@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.memoria.mobile.ui.common.WhatsAppContactImportButton
 import com.memoria.mobile.data.remote.Caregiver
 import com.memoria.mobile.ui.common.LoadingBox
 import com.memoria.mobile.util.BrazilianPhone
@@ -139,6 +140,7 @@ fun WhatsAppScreen(contentPadding: PaddingValues, onBack: () -> Unit) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("Adicionar cuidador", style = MaterialTheme.typography.labelLarge)
+                        WhatsAppContactImportButton(onPicked = { name, phone -> cgName = name; cgPhone = phone })
                         OutlinedTextField(
                             value = cgName,
                             onValueChange = { cgName = it },

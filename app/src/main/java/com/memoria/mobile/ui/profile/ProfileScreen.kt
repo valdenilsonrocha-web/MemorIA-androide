@@ -76,6 +76,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.memoria.mobile.ui.common.WhatsAppContactImportButton
 import com.memoria.mobile.data.local.EmergencyContactRecord
 import com.memoria.mobile.ui.common.BackTopBar
 import com.memoria.mobile.ui.common.ErrorState
@@ -430,6 +431,7 @@ private fun ContactDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                WhatsAppContactImportButton(onPicked = { n, p -> name = n; phone = p })
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },

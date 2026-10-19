@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.sp
+import com.memoria.mobile.ui.common.WhatsAppContactImportButton
 import com.memoria.mobile.ui.theme.TextPrimary
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -176,6 +177,7 @@ fun MyDoctorsScreen(onBack: () -> Unit) {
                             Text(" Agenda", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+                    WhatsAppContactImportButton(onPicked = { name, phone -> vm.fillFromAgenda(name, phone) })
                     OutlinedTextField(
                         value = state.contactInfo,
                         onValueChange = vm::onContactInfo,

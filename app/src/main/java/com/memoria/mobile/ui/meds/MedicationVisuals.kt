@@ -1,6 +1,7 @@
 package com.memoria.mobile.ui.meds
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -25,8 +26,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.memoria.mobile.R
 import com.memoria.mobile.data.local.MedicationLook
 import com.memoria.mobile.data.remote.Medication
 import java.time.LocalDate
@@ -157,6 +161,14 @@ val MED_FORM_DEFS: List<MedFormDef> = listOf(
         SvgEl("M13 4h6v5l4 9v8a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2v-8l4-9V4z"),
         SvgEl(line(11f, 21f, 21f, 21f), strokeAlpha = .4f), SvgEl(line(12f, 4f, 20f, 4f)),
     )),
+    // Formas que no site só existem como imagem (`getMedicationFormImage`).
+    MedFormDef("adesivo_bucal", "Adesivo bucal", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("caneta", "Caneta", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("colirio", "Colírio", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("comprimido_mastigavel", "Comprimido mastigável", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("efervescente", "Efervescente", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("spray_nasal", "Spray nasal", hasColor = false, hasShape = false, svg = emptyList()),
+    MedFormDef("supositorio_infantil", "Supositório infantil", hasColor = false, hasShape = false, svg = emptyList()),
     MedFormDef("softgel", "Softgel", hasColor = true, hasShape = false, svg = listOf(
         SvgEl(ellipse(16f, 16f, 9f, 12f)), SvgEl(ellipse(13f, 12f, 2.5f, 3.5f), fillAlpha = .22f, stroke = false),
         SvgEl("M10 20 Q16 23 22 20", strokeAlpha = .35f),
@@ -175,6 +187,52 @@ fun normalizeMedicationForm(value: String?): String {
 
 fun medFormDef(value: String?): MedFormDef =
     MED_FORM_DEFS.firstOrNull { it.value == normalizeMedicationForm(value) } ?: MED_FORM_DEFS.first()
+
+/**
+ * `getMedicationFormImage()`: the illustrated icon the site shows for every form
+ * except comprimido and cápsula, which are drawn. Same files as
+ * frontend/public/assets/medication-icons, renamed to resource names.
+ */
+fun medicationFormImage(value: String?): Int? = when (normalizeMedicationForm(value)) {
+    "liquido" -> R.drawable.med_xarope
+    "locao" -> R.drawable.med_locao
+    "spray" -> R.drawable.med_spray
+    "pomada" -> R.drawable.med_pomada
+    "gotas" -> R.drawable.med_gotas
+    "gel" -> R.drawable.med_gel
+    "supositorio" -> R.drawable.med_supositorio
+    "injecao" -> R.drawable.med_injecao
+    "creme" -> R.drawable.med_creme
+    "po" -> R.drawable.med_po
+    "adesivo" -> R.drawable.med_adesivo
+    "espuma" -> R.drawable.med_espuma
+    "inalador" -> R.drawable.med_inalador
+    "goma" -> R.drawable.med_goma
+    "anel" -> R.drawable.med_anel
+    "cha" -> R.drawable.med_cha
+    "erva" -> R.drawable.med_erva
+    "ampola" -> R.drawable.med_ampola
+    "softgel" -> R.drawable.med_softgel
+    "adesivo_bucal" -> R.drawable.med_adesivo_bucal
+    "caneta" -> R.drawable.med_caneta
+    "colirio" -> R.drawable.med_colirio
+    "comprimido_mastigavel" -> R.drawable.med_comprimido_mastigavel
+    "efervescente" -> R.drawable.med_efervescente
+    "spray_nasal" -> R.drawable.med_spray_nasal
+    "supositorio_infantil" -> R.drawable.med_supositorio_infantil
+    else -> null
+}
+
+/** The form's icon for pickers and lists: the illustration when there is one, else the outline. */
+@Composable
+fun MedicationFormGlyph(def: MedFormDef, color: Color, size: Dp, modifier: Modifier = Modifier) {
+    val image = medicationFormImage(def.value)
+    if (image != null) {
+        Image(painterResource(image), contentDescription = null, contentScale = ContentScale.Fit, modifier = modifier.size(size))
+    } else {
+        FormSvgCanvas(def, color, size, modifier)
+    }
+}
 
 /** `getMedicationFormLabel()`. */
 fun medicationFormLabel(value: String?): String = medFormDef(value).label
@@ -255,9 +313,13 @@ fun MedicationIcon(look: MedicationLook?, size: Dp = 48.dp, modifier: Modifier =
                 if (inline) tile * 0.75f else tile * 0.375f,
             )
         }
+        // `.medication-image-icon img`: 56px inside the 64px tile; 28px inline.
+        else -> if (medicationFormImage(form) != null) IconTile(tile, radius, modifier) {
+            MedicationFormGlyph(def, PrimaryDark, if (inline) tile else tile * (56f / 64f))
+        }
         // `.medication-svg-icon svg`: 32px inside the 64px tile, in the chosen
         // colour for coloured forms and `--primary-dark` for the others.
-        else -> IconTile(tile, radius, modifier) {
+        else IconTile(tile, radius, modifier) {
             FormSvgCanvas(
                 def = def,
                 color = if (def.hasColor) hexColor(look?.pillColor ?: "#e5e7eb") else PrimaryDark,

@@ -521,7 +521,12 @@ private fun MedicationCustomizationMenu(state: MedEditState, vm: MedicationEditV
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            FormSvgCanvas(form, MaterialTheme.colorScheme.primary, 28.dp)
+                            // `.med-icon-picker .medication-image-icon img`: 36px.
+                            MedicationFormGlyph(
+                                form,
+                                MaterialTheme.colorScheme.primary,
+                                if (medicationFormImage(form.value) != null) 36.dp else 28.dp,
+                            )
                             Text(form.label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
