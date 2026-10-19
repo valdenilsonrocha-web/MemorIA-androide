@@ -93,6 +93,10 @@ interface ApiService {
         @Body body: VoiceAssistantDispatchRequest,
     ): Response<Envelope<VoiceAssistantDispatchData>>
 
+    // Estado das notificações deste telemóvel, para o painel admin
+    @POST("notifications/device-report")
+    suspend fun deviceReport(@Body body: DeviceReportRequest): Response<SimpleResponse>
+
     @GET("payments/google-play/config")
     suspend fun googlePlayConfig(): Response<Envelope<GooglePlayConfig>>
 

@@ -102,6 +102,7 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
         cpf: String,
         name: String,
         password: String,
+        confirmPassword: String,
         email: String,
         phone: String,
         lgpdConsent: Boolean,
@@ -125,6 +126,14 @@ class AuthViewModel(private val repo: MemoriaRepository) : ViewModel() {
                 return
             }
             !validate(cpf, password, minPassword = REGISTER_MIN_PASSWORD) -> return
+            confirmPassword.isEmpty() -> {
+                _state.update { it.copy(error = "Digite a senha novamente para confirmar.") }
+                return
+            }
+            password != confirmPassword -> {
+                _state.update { it.copy(error = "As duas senhas não são iguais.") }
+                return
+            }
         }
         _state.update { it.copy(loading = true, error = null, serverMessage = null) }
         viewModelScope.launch {

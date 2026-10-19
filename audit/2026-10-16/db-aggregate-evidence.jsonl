@@ -1,0 +1,6 @@
+{"check":"patients","rows":[{"total":16,"active":16,"active_with_phone":14}]}
+{"check":"phone_shapes","rows":[{"digits":11,"leading_zero":false,"starts_55":false,"count":13},{"digits":12,"leading_zero":true,"starts_55":false,"count":1}]}
+{"check":"medications","rows":[{"active":true,"frequency":"daily","count":7}]}
+{"check":"eligible","rows":[{"active_meds":7,"patients":4}]}
+{"check":"events","rows":[]}
+{"check":"events_recent","rows":[]}

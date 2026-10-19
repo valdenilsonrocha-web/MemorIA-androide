@@ -287,7 +287,8 @@ class ReminderScheduler(
         val pending = PendingIntent.getBroadcast(
             context,
             dose.requestCode,
-            ReminderReceiver.intentFor(context, ReminderReceiver.ACTION_FIRE, dose),
+            ReminderReceiver.intentFor(context, ReminderReceiver.ACTION_FIRE, dose)
+                .putExtra(ReminderReceiver.EXTRA_PLANNED_AT, at),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         setExact(manager, at, pending)
@@ -371,6 +372,10 @@ class ReminderScheduler(
         }
         prefs().edit().putString(KEY_ARMED, encoded).apply()
     }
+
+    /** Dose alarms currently armed in the window; 0 with medications means nothing will ring. */
+    fun armedCount(): Int =
+        prefs().getString(KEY_ARMED, null)?.lineSequence()?.count { it.isNotBlank() } ?: 0
 
     private fun cancelTracked() {
         val manager = alarmManager ?: return

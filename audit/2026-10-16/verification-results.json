@@ -1,0 +1,14 @@
+{
+  "hostTZ": "UTC",
+  "fixedNow": "2026-10-16T12:00:00Z",
+  "transport": "mock only; no network",
+  "checksPassed": 6,
+  "checks": [
+    "Production formatter preserves missing DDI and leading zero.",
+    "Patient reminder is sent on Friday for a Monday-only medication (mock transport).",
+    "Production sender passes the unnormalized number to Evolution.",
+    "Deduplication is lost after process restart; same synthetic dose is submitted again.",
+    "With host TZ=UTC the history day begins at 00:00Z instead of Sao Paulo 03:00Z.",
+    "A 09:00 dose is no longer attempted at 09:01; there is no catch-up after its minute."
+  ]
+}

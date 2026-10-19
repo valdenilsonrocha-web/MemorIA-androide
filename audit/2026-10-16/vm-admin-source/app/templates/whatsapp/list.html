@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp & Avisos{% endblock %}
+{% block page_title %}Monitor de Mensagens WhatsApp{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ showTestModal: false, selectedEvent: null }">
+
+    {% if msg == 'resent' %}
+    <div class="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 flex items-center justify-center font-bold">
+                <i data-lucide="check" class="w-4 h-4"></i>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-900">Mensagem Reenviada</h4>
+                <p class="text-xs text-emerald-700 mt-0.5">O evento foi reencaminhado para a fila de disparo com sucesso.</p>
+            </div>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700 p-1">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+    {% elif msg == 'test_sent' %}
+    <div class="p-4 bg-teal-50 border border-teal-200 text-teal-800 rounded-2xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-600 flex items-center justify-center font-bold">
+                <i data-lucide="send" class="w-4 h-4"></i>
+            </div>
+            <div>
+                <h4 class="text-xs font-bold uppercase tracking-wider text-teal-900">Disparo de Teste Efetuado</h4>
+                <p class="text-xs text-teal-700 mt-0.5">Mensagem de teste registrada e enviada via API WhatsApp.</p>
+            </div>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-teal-500 hover:text-teal-700 p-1">
+            <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Gateway: Evolution API / Z-API</span>
+                    </span>
+                    <span class="text-xs text-slate-400">Total: {{ total }} eventos</span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-900 mt-1">Monitor Operacional WhatsApp</h2>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" @click="showTestModal = true" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>Disparar Lembrete de Teste</span>
+                </button>
+            </div>
+        </div>
+
+        <form method="GET" action="{{ root_path }}/whatsapp" class="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
+            <div class="sm:col-span-2 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </span>
+                <input type="text" name="q" value="{{ q }}" placeholder="Buscar por número, ID ou mensagem..." class="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 text-slate-800">
+            </div>
+
+            <div>
+                <select name="status" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700">
+                    <option value="">Status: Todos</option>
+                    <option value="sent" {% if status_filter == 'sent' %}selected{% endif %}>Enviado (Sent)</option>
+                    <option value="delivered" {% if status_filter == 'delivered' %}selected{% endif %}>Entregue (Delivered)</option>
+                    <option value="read" {% if status_filter == 'read' %}selected{% endif %}>Lido (Read)</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Falha (Failed)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button type="submit" class="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold transition-colors">Filtrar</button>
+                {% if q or status_filter %}
+                <a href="{{ root_path }}/whatsapp" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors" title="Limpar"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Table of WhatsApp Events -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50 text-slate-400 uppercase font-semibold text-[10px] tracking-wider border-b border-slate-100">
+                    <tr>
+                        <th class="px-5 py-3.5">Destinatário</th>
+                        <th class="px-5 py-3.5">Tipo de Evento</th>
+                        <th class="px-5 py-3.5">Provedor</th>
+                        <th class="px-5 py-3.5">Status</th>
+                        <th class="px-5 py-3.5">Data/Hora</th>
+                        <th class="px-5 py-3.5">Conteúdo / Erro</th>
+                        <th class="px-5 py-3.5 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for evt in events %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-5 py-3.5 font-mono font-semibold text-slate-800">
+                            {{ evt.recipient or '-' }}
+                        </td>
+                        <td class="px-5 py-3.5">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 uppercase">
+                                {{ evt.event_type or 'mensagem' }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 uppercase font-mono text-[10px]">
+                            {{ evt.provider or 'evolution' }}
+                        </td>
+                        <td class="px-5 py-3.5">
+                            {% if evt.status in ('delivered', 'read') %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">{{ evt.status }}</span>
+                            {% elif evt.status == 'sent' %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">{{ evt.status }}</span>
+                            {% elif evt.status == 'failed' %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">{{ evt.status }}</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">{{ evt.status or '-' }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-500 font-mono text-[11px]">
+                            {{ evt.event_at.strftime('%d/%m/%Y %H:%M:%S') if evt.event_at else '-' }}
+                        </td>
+                        <td class="px-5 py-3.5 max-w-xs truncate text-[11px] text-slate-600" title="{{ evt.error or evt.payload|string }}">
+                            {{ evt.error or (evt.payload.get('text') if evt.payload else '-') }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right">
+                            <div class="inline-flex items-center gap-1.5">
+                                {% if evt.status == 'failed' %}
+                                <form method="POST" action="{{ root_path }}/whatsapp/{{ evt.id }}/resend" onsubmit="return confirm('Deseja reenviar esta notificação?');">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold transition-colors" title="Reenviar Mensagem">
+                                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                                        <span>Reenviar</span>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <button type="button" @click="selectedEvent = {{ evt | tojson | forceescape }}" class="p-1 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors" title="Ver Detalhes">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-5 py-12 text-center text-slate-400">Nenhum evento registrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            <div>
+                Exibindo página <strong class="text-slate-800">{{ page }}</strong> de <strong class="text-slate-800">{{ total_pages }}</strong> 
+                <span class="text-slate-400">({{ total }} evento(s) no total)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                {% if page > 1 %}
+                <a href="{{ root_path }}/whatsapp?page={{ page - 1 }}&q={{ q }}&status={{ status_filter }}&provider={{ provider_filter }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 transition-colors">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    <span>Anterior</span>
+                </a>
+                {% else %}
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-50 rounded-lg font-semibold text-slate-300 cursor-not-allowed">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    <span>Anterior</span>
+                </span>
+                {% endif %}
+
+                <div class="flex items-center gap-1">
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                        <span class="w-8 h-8 rounded-lg bg-teal-600 text-white font-bold flex items-center justify-center text-xs shadow-sm shadow-teal-500/20">
+                            {{ p }}
+                        </span>
+                        {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+                        <a href="{{ root_path }}/whatsapp?page={{ p }}&q={{ q }}&status={{ status_filter }}&provider={{ provider_filter }}" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center justify-center text-xs transition-colors">
+                            {{ p }}
+                        </a>
+                        {% elif p == 4 and page > 4 %}
+                        <span class="px-1 text-slate-400">...</span>
+                        {% elif p == total_pages - 3 and page < total_pages - 3 %}
+                        <span class="px-1 text-slate-400">...</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if page < total_pages %}
+                <a href="{{ root_path }}/whatsapp?page={{ page + 1 }}&q={{ q }}&status={{ status_filter }}&provider={{ provider_filter }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700 transition-colors">
+                    <span>Próxima</span>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </a>
+                {% else %}
+                <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-50 rounded-lg font-semibold text-slate-300 cursor-not-allowed">
+                    <span>Próxima</span>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal de Disparo de Teste (Alpine.js) -->
+    <div x-show="showTestModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="showTestModal = false" class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-900">Disparo de Teste WhatsApp</h4>
+                        <p class="text-[11px] text-slate-500">Enviar lembrete de teste para um número</p>
+                    </div>
+                </div>
+                <button @click="showTestModal = false" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form method="POST" action="{{ root_path }}/whatsapp/send-test" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Número de Telefone (com DDD)</label>
+                    <input type="text" name="phone" required placeholder="Ex: 11988887777" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 text-slate-800">
+                    <p class="text-[10px] text-slate-400 mt-1">Apenas dígitos com código de área.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Lembrete</label>
+                    <select name="message_type" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 text-slate-800">
+                        <option value="dose_reminder">Lembrete de Medicamento (Dose)</option>
+                        <option value="missed_dose_alert">Alerta de Dose Perdida para Cuidador</option>
+                        <option value="stock_low_warning">Aviso de Estoque Baixo</option>
+                        <option value="welcome">Boas-vindas ao Paciente</option>
+                    </select>
+                </div>
+
+                <div class="pt-2 flex items-center justify-end gap-2">
+                    <button type="button" @click="showTestModal = false" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition-colors flex items-center gap-1.5">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>Disparar Agora</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes do Evento (Alpine.js) -->
+    <div x-show="selectedEvent" x-cloak class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="selectedEvent = null" class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                    <h4 class="text-sm font-bold text-slate-900">Detalhes do Evento WhatsApp</h4>
+                </div>
+                <button @click="selectedEvent = null" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Destinatário</span>
+                    <span class="font-bold text-slate-800 font-mono" x-text="selectedEvent?.recipient"></span>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Status</span>
+                    <span class="font-bold text-slate-800" x-text="selectedEvent?.status"></span>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Tipo</span>
+                    <span class="font-bold text-slate-800" x-text="selectedEvent?.event_type"></span>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Provedor</span>
+                    <span class="font-bold text-slate-800 uppercase" x-text="selectedEvent?.provider"></span>
+                </div>
+            </div>
+
+            <template x-if="selectedEvent?.error">
+                <div>
+                    <span class="text-[10px] text-rose-500 uppercase font-bold block mb-1">Mensagem de Erro</span>
+                    <pre class="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded-xl text-xs font-mono whitespace-pre-wrap break-all" x-text="selectedEvent?.error"></pre>
+                </div>
+            </template>
+
+            <div>
+                <span class="text-[10px] text-slate-400 uppercase font-bold block mb-1">Payload Completo</span>
+                <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs font-mono whitespace-pre-wrap break-all overflow-x-auto max-h-60" x-text="JSON.stringify(selectedEvent?.payload, null, 2)"></pre>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button @click="selectedEvent = null" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

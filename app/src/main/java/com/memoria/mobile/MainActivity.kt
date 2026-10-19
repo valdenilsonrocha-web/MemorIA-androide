@@ -22,7 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.data.ApiResult
+import androidx.lifecycle.lifecycleScope
+import com.memoria.mobile.reminders.DeviceReporter
 import com.memoria.mobile.reminders.MemoriaNotifications
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.memoria.mobile.ui.auth.AppLoadingScreen
 import com.memoria.mobile.ui.common.repository
 import com.memoria.mobile.ui.nav.MemoriaNav
@@ -52,6 +56,19 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Coming back from Android's settings is when a permission most often
+        // changed, so the admin panel learns it on the spot.
+        val app = application as MemoriaApp
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                if (!app.graph.repository.isLoggedIn()) app.graph.repository.bootstrap()
+                DeviceReporter.report(app)
             }
         }
     }

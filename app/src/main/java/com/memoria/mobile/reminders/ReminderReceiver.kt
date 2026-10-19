@@ -47,7 +47,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val dose = DoseAlarm.readFrom(intent) ?: return
         when (intent.action) {
-            ACTION_FIRE -> fire(context, app, dose)
+            ACTION_FIRE -> fire(context, app, dose, intent.getLongExtra(EXTRA_PLANNED_AT, dose.triggerAtMillis))
             ACTION_TAKEN -> answer(context, app, dose, status = "taken")
             ACTION_MISSED -> answer(context, app, dose, status = "missed")
             ACTION_SNOOZE -> snooze(context, app, dose)
@@ -64,9 +64,10 @@ class ReminderReceiver : BroadcastReceiver() {
         MemoriaNotifications.ensureChannels(context)
         if (!MemoriaNotifications.canPost(context)) {
             Log.w(TAG, "Sem permissão de notificação; consulta de ${alarm.professional} não mostrada")
+            NotificationLog.record(context, NotificationLog.KIND_CONSULTATION, alarm.professional, null, shown = false)
             return
         }
-        MemoriaNotifications.post(
+        val shown = MemoriaNotifications.post(
             context,
             alarm.requestCode,
             MemoriaNotifications.buildConsultationNotification(
@@ -78,37 +79,46 @@ class ReminderReceiver : BroadcastReceiver() {
                 dateTime = alarm.dateTime,
             ),
         )
+        NotificationLog.record(context, NotificationLog.KIND_CONSULTATION, alarm.professional, null, shown)
     }
 
     private fun fireStock(context: Context, alarm: StockAlarm) {
         MemoriaNotifications.ensureChannels(context)
         if (!MemoriaNotifications.canPost(context)) {
             Log.w(TAG, "Sem permissão de notificação; estoque de ${alarm.medicationName} não avisado")
+            NotificationLog.record(context, NotificationLog.KIND_STOCK, alarm.medicationName, null, shown = false)
             return
         }
-        MemoriaNotifications.post(
+        val shown = MemoriaNotifications.post(
             context,
             alarm.requestCode,
             MemoriaNotifications.buildLowStockNotification(context, alarm),
         )
+        NotificationLog.record(context, NotificationLog.KIND_STOCK, alarm.medicationName, null, shown)
     }
 
-    private fun fire(context: Context, app: MemoriaApp, dose: DoseAlarm) {
+    private fun fire(context: Context, app: MemoriaApp, dose: DoseAlarm, plannedAtMillis: Long) {
         MemoriaNotifications.ensureChannels(context)
-        if (MemoriaNotifications.post(
-                context,
-                dose.requestCode,
-                MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
-            )
-        ) {
+        val shown = MemoriaNotifications.post(
+            context,
+            dose.requestCode,
+            MemoriaNotifications.buildDoseNotification(context, dose, dose.sound),
+        )
+        if (shown) {
             scheduleSilence(context, dose)
             // Phone in use: the full-screen intent would only be a small heads-up.
             com.memoria.mobile.ReminderAlertActivity.launchNow(context, dose)
         } else {
             Log.w(TAG, "Sem permissão de notificação; lembrete de ${dose.medicationName} não mostrado")
         }
+        // Logged after posting, never before: the reminder must not wait on bookkeeping.
+        NotificationLog.record(context, NotificationLog.KIND_DOSE, "${dose.medicationName} ${dose.time}", plannedAtMillis, shown)
         // Firing consumes one alarm from the window, so top the window back up.
-        background(this, app) { app.graph.reminderScheduler.reschedule() }
+        background(this, app) {
+            app.graph.reminderScheduler.reschedule()
+            // A refused reminder is exactly what the admin must see today, not at the next heartbeat.
+            DeviceReporter.report(app, force = !shown)
+        }
     }
 
     /**
@@ -244,6 +254,9 @@ class ReminderReceiver : BroadcastReceiver() {
         /** Sent (package-local) when a dose is answered, so an open full-screen alert closes. */
         const val ACTION_DOSE_ANSWERED = "com.memoria.mobile.DOSE_ANSWERED"
         const val EXTRA_REQUEST_CODE = "com.memoria.mobile.extra.REQUEST_CODE"
+
+        /** When a snoozed dose is meant to ring, so its lateness is not counted from the original time. */
+        const val EXTRA_PLANNED_AT = "com.memoria.mobile.extra.PLANNED_AT"
 
         /** `medicationAlarmDurationMs` on the web: the alarm rings for one minute. */
         const val ALARM_DURATION_MS = 60_000L

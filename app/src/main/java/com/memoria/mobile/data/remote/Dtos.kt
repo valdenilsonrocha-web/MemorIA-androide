@@ -433,3 +433,43 @@ data class VoiceAssistantDispatchData(
     /** "browser-tts" when the server only prepared the phrase instead of posting it. */
     val mode: String? = null,
 )
+
+// ---- Notification health (POST /notifications/device-report) -------------
+
+/**
+ * One local reminder the phone tried to show. [id] is stable for that attempt,
+ * so the phone can resend its whole log and the server keeps one copy.
+ */
+@JsonClass(generateAdapter = true)
+data class DeviceReportEvent(
+    val id: String,
+    /** dose | stock | consultation */
+    val kind: String,
+    val label: String? = null,
+    val scheduledFor: String? = null,
+    val firedAt: String,
+    /** shown | blocked (Android refused to show it) */
+    val outcome: String,
+    /** How long after the planned time the alarm actually rang. */
+    val delayMinutes: Int? = null,
+)
+
+/**
+ * What Android lets the app do right now. Any `false` here is a reminder the
+ * patient will not see or hear, whatever the server sends.
+ */
+@JsonClass(generateAdapter = true)
+data class DeviceReportRequest(
+    val deviceId: String,
+    val platform: String = "android",
+    val appVersion: String? = null,
+    val osVersion: String? = null,
+    val deviceModel: String? = null,
+    val notificationsEnabled: Boolean? = null,
+    val doseChannelEnabled: Boolean? = null,
+    val exactAlarmAllowed: Boolean? = null,
+    val batteryUnrestricted: Boolean? = null,
+    val fullScreenAllowed: Boolean? = null,
+    val scheduledAlarms: Int? = null,
+    val events: List<DeviceReportEvent> = emptyList(),
+)

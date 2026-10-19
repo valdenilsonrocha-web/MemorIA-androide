@@ -1,0 +1,28 @@
+backend_config {"WHATSAPP_PROVIDER": "evolution", "EVOLUTION_API_URL": "http://localhost:8081", "EVOLUTION_INSTANCE_NAME": "memoria", "APP_TIMEZONE": "America/Sao_Paulo", "TZ": "<unset>", "WHATSAPP_REMINDER_LEAD_MINUTES": "<unset>", "DB_DIALECT": "postgres", "NODE_ENV": "production"}
+backend_secret_presence {"EVOLUTION_API_KEY": true, "WHATSAPP_ACCESS_TOKEN": false, "WHATSAPP_PHONE_NUMBER_ID": false, "RESEND_API_KEY": true}
+container_config {"LOG_LEVEL": "ERROR", "CONFIG_SESSION_PHONE_VERSION": "<unset>", "CONFIG_SESSION_PHONE_CLIENT": "<unset>", "CONFIG_SESSION_PHONE_NAME": "<unset>", "CACHE_REDIS_ENABLED": "false", "CACHE_LOCAL_ENABLED": "<unset>", "DATABASE_ENABLED": "true", "DATABASE_PROVIDER": "postgresql", "WEBHOOK_GLOBAL_ENABLED": "<unset>", "AUTHENTICATION_TYPE": "<unset>", "SERVER_PORT": "<unset>"}
+api_keys_equal True
+container_log {"driver": {"Type": "json-file", "Config": {}}, "path": "/var/lib/docker/containers/36e50e6417f67017d213c3500c94482c838f44ff66fcf5a3ebd4141daa2f95f6/36e50e6417f67017d213c3500c94482c838f44ff66fcf5a3ebd4141daa2f95f6-json.log", "started": "2026-10-13T12:44:43.665195652Z", "restartCount": 0}
+GET / 200 {"status": 200, "message": "Welcome to the Evolution API, it is working!", "version": "2.3.7", "clientName": "<redacted>", "manager": "http://localhost:8081/manager", "documentation": "https://doc.evolution-api.com", "whatsappWebVersion": "2.3000.<phone-redacted>"}
+GET /instance/connectionState/memoria 200 {"instance": {"instanceName": "memoria", "state": "close"}}
+GET /instance/fetchInstances 200 [{"id": "fe0ca0b2-2e6a-4966-b4e5-5fec5525f9dd", "name": "memoria", "connectionStatus": "connecting", "ownerJid": "<redacted>", "profileName": "<redacted>", "profilePicUrl": "<redacted>", "integration": "WHATSAPP-BAILEYS", "number": "<redacted>", "businessId": null, "token": "<redacted>", "clientName": "<redacted>", "disconnectionReasonCode": null, "disconnectionObject": null, "disconnectionAt": null, "createdAt": "2026-07-02T01:06:42.224Z", "updatedAt": "2026-10-13T20:06:10.110Z", "Chatwoot": null, "Proxy": null, "Rabbitmq": null, "Nats": null, "Sqs": null, "Websocket": null, "Setting": {"id": "cmr2t0lh30001pg5q0iqjysqa", "rejectCall": false, "msgCall": "", "groupsIgnore": false, "alwaysOnline": false, "readMessages": false, "readStatus": false, "syncFullHistory": false, "wavoipToken": "<redacted>", "createdAt": "2026-07-02T01:06:42.231Z", "updatedAt": "2026-07-02T01:06:42.231Z", "instanceId": "fe0ca0b2-2e6a-4966-b4e5-5fec5525f9dd"}, "_count": {"Message": 0, "Contact": 0, "Chat": 0}}]
+GET /webhook/find/memoria 200 null
+file src/services/whatsappReminderService.js sha256 1bb8f25644d321ff79084fc21e1deb92b880ebe3570f672de3d0e15288c7eb37 mtime 1790123796.0
+4: * Roda em background via setInterval, iniciado pelo server.js após o banco conectar.
+111:const formatPhone = (raw = '') => String(raw).replace(/\D/g, '');
+159:        .map((c) => ({ name: c?.name || '', phone: formatPhone(c?.phone || ''), relation: c?.relation || '' }))
+183:const APP_TZ = process.env.APP_TIMEZONE || 'America/Sao_Paulo';
+194:const getWindowTimes = (leadMinutes) => {
+204:const todayStr = () => zonedNow().date;
+210:        const windowTimes = getWindowTimes(REMINDER_LEAD_MINUTES);
+220:                    attributes: ['id', 'name', 'phone', 'subscriptionStatus', 'caregivers'],
+238:            const phone = formatPhone(user.phone);
+301:                            const supplierPhone = formatPhone(med.supplier.phone);
+358:const isScheduledToday = (med) => {
+414:            if (!caregivers.length || !isScheduledToday(med)) continue;
+454: * @param {number} intervalMinutes - Intervalo de verificação (padrão: 5 minutos)
+456:export const startWhatsAppReminderService = (intervalMinutes = 5) => {
+464:    console.log(`[whatsapp-reminders] ✅ Serviço iniciado (provider: ${provider}, intervalo: ${intervalMinutes}min, antecedência: ${REMINDER_LEAD_MINUTES}min)`);
+473:    setInterval(cycle, intervalMinutes * 60 * 1000);
+file src/controllers/integrationController.js sha256 3f867cbb824b3ad1ff0a0e8e3b93560fd150226e24e02c7750785e07fad5fe6d mtime 1790123796.0
+file src/server.js sha256 aff52e3067bce0543f1450006a04288ef8f2636f9a0fc9f10dead2763126d567 mtime 1790123796.0

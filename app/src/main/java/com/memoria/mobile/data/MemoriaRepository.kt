@@ -10,6 +10,7 @@ import com.memoria.mobile.data.remote.AuthData
 import com.memoria.mobile.data.remote.Caregiver
 import com.memoria.mobile.data.remote.ConsentRequest
 import com.memoria.mobile.data.remote.ConsultationPayload
+import com.memoria.mobile.data.remote.DeviceReportRequest
 import com.memoria.mobile.data.remote.ForgotPasswordRequest
 import com.memoria.mobile.data.remote.ResetPasswordRequest
 import com.memoria.mobile.data.remote.VitalSignsPayload
@@ -475,6 +476,10 @@ class MemoriaRepository(
     suspend fun addHistory(request: HistoryRequest): ApiResult<Unit> = call {
         simpleResult(api().addHistory(request))
     }.alsoReschedule()
+
+    suspend fun sendDeviceReport(request: DeviceReportRequest): ApiResult<Unit> = call {
+        simpleResult(api().deviceReport(request))
+    }
 
     suspend fun adherence(days: Int = 30): ApiResult<Adherence> = call {
         val r = api().getAdherence(days)

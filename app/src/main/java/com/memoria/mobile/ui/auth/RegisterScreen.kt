@@ -18,11 +18,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +77,9 @@ fun RegisterScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var showPassword by rememberSaveable { mutableStateOf(false) }
+    var showConfirmPassword by rememberSaveable { mutableStateOf(false) }
     var lgpdConsent by rememberSaveable { mutableStateOf(false) }
     var susCard by rememberSaveable { mutableStateOf("") }
     var gender by rememberSaveable { mutableStateOf("not_informed") }
@@ -131,8 +138,40 @@ fun RegisterScreen(
                 label = { Text("Senha * (mínimo ${AuthViewModel.REGISTER_MIN_PASSWORD} caracteres)") },
                 placeholder = { Text("Mínimo ${AuthViewModel.REGISTER_MIN_PASSWORD} caracteres") },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showPassword) "Ocultar senha" else "Mostrar senha",
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = { Text("Confirmar senha *") },
+                placeholder = { Text("Digite a senha novamente") },
+                singleLine = true,
+                isError = confirmPassword.isNotEmpty() && confirmPassword != password,
+                supportingText = {
+                    if (confirmPassword.isNotEmpty() && confirmPassword != password) {
+                        Text("As duas senhas não são iguais.")
+                    }
+                },
+                visualTransformation = if (showConfirmPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    IconButton(onClick = { showConfirmPassword = !showConfirmPassword }) {
+                        Icon(
+                            if (showConfirmPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (showConfirmPassword) "Ocultar confirmação de senha" else "Mostrar confirmação de senha",
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
@@ -218,7 +257,7 @@ fun RegisterScreen(
                     // cadastro responde com a mensagem em vez de ficar mudo.
                     onClick = {
                         vm.register(
-                            cpf, name, password, email, phone, lgpdConsent, onRegistered,
+                            cpf, name, password, confirmPassword, email, phone, lgpdConsent, onRegistered,
                             susCard = susCard, gender = gender,
                         )
                     },
