@@ -98,6 +98,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.memoria.mobile.ui.common.WhatsAppContactImportButton
 import com.memoria.mobile.reminders.ReminderSound
 import com.memoria.mobile.ui.common.PageGuide
 import com.memoria.mobile.ui.common.PageTitle
@@ -280,11 +281,11 @@ fun SettingsScreen(
                 )
             }
 
-            // ---- Envio Automático de Relatório por E-mail ----
+            // ---- Envio Automático de Relatório (e-mail; ao médico também por WhatsApp) ----
             SectionCard(
                 titleColor = TextPrimary,
-                title = "Envio Automático de Relatório por E-mail",
-                subtitle = "Ative para receber relatório semanal ou mensal no e-mail de contato cadastrado.",
+                title = "Envio Automático de Relatório",
+                subtitle = "Relatório semanal ou mensal por e-mail. Para o médico, vai também um resumo pelo WhatsApp.",
                 icon = Icons.Filled.Drafts,
             ) {
                 StatusSwitch(
@@ -301,6 +302,31 @@ fun SettingsScreen(
                     onSelect = vm::onReportFrequency,
                     enabled = !state.reportSaving,
                 )
+                Text("Enviar para", style = MaterialTheme.typography.labelLarge)
+                SettingsSelect(
+                    options = listOf("caregiver" to "Cuidador / responsável", "doctor" to "Médico(a)"),
+                    selected = state.reportContactType,
+                    onSelect = vm::onReportContactType,
+                    enabled = !state.reportSaving,
+                )
+                if (state.reportContactType == "doctor") {
+                    WhatsAppContactImportButton(onPicked = { _, phone -> vm.onReportDoctorPicked(phone) })
+                    var phoneFocused by remember { mutableStateOf(false) }
+                    OutlinedTextField(
+                        value = state.reportContactPhone,
+                        onValueChange = vm::onReportContactPhone,
+                        label = { Text("WhatsApp do médico (DDD + número)") },
+                        placeholder = { Text("85999998888") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged {
+                                if (phoneFocused && !it.isFocused) vm.saveReportSettings()
+                                phoneFocused = it.isFocused
+                            },
+                    )
+                }
                 var emailFocused by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = state.reportContactEmail,
@@ -319,15 +345,21 @@ fun SettingsScreen(
                 )
                 // Web `updateAutoReportStatusUI` reads the SAVED e-mail, not the field being typed.
                 val validEmail = SettingsViewModel.isValidEmail(state.reportSavedEmail)
+                val doctorWhatsApp = state.reportContactType == "doctor" &&
+                    SettingsViewModel.reportPhoneForServer(state.reportContactPhone).isNotEmpty()
+                val freq = if (state.reportFrequency == "monthly") "mensal" else "semanal"
                 val (reportStatus, reportColor) = when {
-                    state.reportEnabled && !validEmail ->
-                        "Informe um e-mail válido para habilitar o envio automático." to STATUS_ERROR
                     !state.reportEnabled ->
                         "Envio automático desativado." to MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> {
-                        val freq = if (state.reportFrequency == "monthly") "mensal" else "semanal"
-                        "Relatório $freq será enviado para ${state.reportSavedEmail}." to STATUS_ON
-                    }
+                    state.reportContactType == "doctor" && state.reportContactPhone.isNotBlank() && !doctorWhatsApp ->
+                        "WhatsApp do médico inválido: use DDD + número." to STATUS_ERROR
+                    doctorWhatsApp && validEmail ->
+                        "Resumo $freq pelo WhatsApp ao médico e relatório completo para ${state.reportSavedEmail}." to STATUS_ON
+                    doctorWhatsApp ->
+                        "Resumo $freq será enviado pelo WhatsApp ao médico." to STATUS_ON
+                    !validEmail ->
+                        "Informe um e-mail válido para habilitar o envio automático." to STATUS_ERROR
+                    else -> "Relatório $freq será enviado para ${state.reportSavedEmail}." to STATUS_ON
                 }
                 Text(reportStatus, style = MaterialTheme.typography.bodyLarge, color = reportColor)
             }

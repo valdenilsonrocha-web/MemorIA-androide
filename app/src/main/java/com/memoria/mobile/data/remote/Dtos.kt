@@ -109,7 +109,11 @@ data class ReportSettings(
     val enabled: Boolean = false,
     /** weekly | monthly */
     val frequency: String = "weekly",
+    /** caregiver | doctor */
+    val contactType: String = "caregiver",
     val contactEmail: String = "",
+    /** WhatsApp of the recipient, digits with country code. Used when [contactType] is doctor. */
+    val contactPhone: String = "",
     val lastReportSentAt: String? = null,
     val lastReportPeriodKey: String? = null,
 )
@@ -143,7 +147,11 @@ data class ProfileUpdateRequest(
     val reportAutoSendEnabled: Boolean? = null,
     /** weekly | monthly */
     val reportFrequency: String? = null,
+    /** caregiver | doctor — with doctor, the server also sends the summary by WhatsApp. */
+    val reportContactType: String? = null,
     val reportContactEmail: String? = null,
+    /** The doctor's WhatsApp; "" clears it. */
+    val reportContactPhone: String? = null,
 )
 
 // ---- Medications ---------------------------------------------------------

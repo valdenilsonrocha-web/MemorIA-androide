@@ -21,7 +21,9 @@ import com.memoria.mobile.data.remote.VoiceAssistantConfig
 import com.memoria.mobile.reminders.MemoriaNotifications
 import com.memoria.mobile.reminders.ReminderScheduler
 import com.memoria.mobile.reminders.ReminderSound
+import com.memoria.mobile.ui.common.WhatsAppContacts
 import com.memoria.mobile.ui.theme.ThemePreset
+import com.memoria.mobile.util.BrazilianPhone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +60,9 @@ data class SettingsUiState(
     // Relatório automático por e-mail (guardado no servidor)
     val reportEnabled: Boolean = false,
     val reportFrequency: String = "weekly",
+    /** caregiver | doctor. With doctor, the summary also goes to [reportContactPhone] by WhatsApp. */
+    val reportContactType: String = "caregiver",
+    val reportContactPhone: String = "",
     val reportContactEmail: String = "",
     /** The e-mail as last saved — the web's status line reads the saved value, not the field. */
     val reportSavedEmail: String = "",
@@ -145,6 +150,9 @@ class SettingsViewModel(
             user = user,
             reportEnabled = report?.enabled ?: false,
             reportFrequency = if (report?.frequency == "monthly") "monthly" else "weekly",
+            reportContactType = if (report?.contactType == "doctor") "doctor" else "caregiver",
+            reportContactPhone = report?.contactPhone?.takeIf { it.isNotBlank() }
+                ?.let { WhatsAppContacts.forField("+$it") }.orEmpty(),
             reportContactEmail = email,
             reportSavedEmail = email,
             lastReportSentAt = report?.lastReportSentAt,
@@ -284,6 +292,21 @@ class SettingsViewModel(
         _state.update { it.copy(reportContactEmail = email) }
     }
 
+    fun onReportContactType(type: String) {
+        _state.update { it.copy(reportContactType = if (type == "doctor") "doctor" else "caregiver") }
+        saveReportSettings()
+    }
+
+    fun onReportContactPhone(phone: String) {
+        _state.update { it.copy(reportContactPhone = phone) }
+    }
+
+    /** "Importar dos contatos do WhatsApp" for the doctor: saved at once. */
+    fun onReportDoctorPicked(phone: String) {
+        _state.update { it.copy(reportContactPhone = phone) }
+        saveReportSettings()
+    }
+
     /**
      * The web's `saveSettings()` + `syncAutomatedReportSettingsToBackend()`:
      * "✅ Configurações salvas" shows at once, and the report settings go to
@@ -297,12 +320,18 @@ class SettingsViewModel(
         val email = s.reportContactEmail.trim().lowercase()
         _state.value = s.copy(reportSavedEmail = email, message = SAVED)
         if (!s.isLoggedIn) return
-        if (s.reportEnabled && !isValidEmail(email)) return
+        val doctor = s.reportContactType == "doctor"
+        val phone = reportPhoneForServer(s.reportContactPhone)
+        // A doctor reached by WhatsApp needs no e-mail; anyone else still does.
+        if (s.reportEnabled && !isValidEmail(email) && !(doctor && phone.isNotEmpty())) return
+        if (s.reportContactPhone.isNotBlank() && phone.isEmpty()) return
         _state.update { it.copy(reportSaving = true) }
         viewModelScope.launch {
             val request = ProfileUpdateRequest(
                 reportAutoSendEnabled = s.reportEnabled,
                 reportFrequency = if (s.reportFrequency == "monthly") "monthly" else "weekly",
+                reportContactType = if (doctor) "doctor" else "caregiver",
+                reportContactPhone = phone,
                 // Moshi drops nulls, and the server turns "" into null: both mean "no e-mail".
                 reportContactEmail = email,
                 medicalConsultations = consultationsPayload(),
@@ -588,6 +617,16 @@ class SettingsViewModel(
         private const val KEY_LAST_SYNC = "last_sync_at"
         /** Shared with the header — keep the key. */
         private const val KEY_PROFILE_PHOTO = "profile_photo_path"
+
+        /**
+         * The doctor's WhatsApp as the server stores it: digits with the country
+         * code. "" for an empty field, and also for a number too short to be real.
+         */
+        fun reportPhoneForServer(raw: String): String {
+            if (raw.isBlank()) return ""
+            val id = BrazilianPhone.toWhatsAppId(raw)
+            return if (id.length in 12..15) id else ""
+        }
 
         /** Same rule as the web's `isValidEmail`. */
         fun isValidEmail(value: String): Boolean {

@@ -97,9 +97,10 @@ fun WhatsAppScreen(contentPadding: PaddingValues, onBack: () -> Unit) {
                         )
                     }
                     Text(
-                        "Os lembretes de cada dose chegam no WhatsApp do paciente. " +
-                            "Se uma dose não for confirmada dentro da tolerância, o servidor " +
-                            "avisa automaticamente os cuidadores — mesmo com o celular desligado.",
+                        "O lembrete de cada dose toca no próprio celular. Pelo WhatsApp vão só: " +
+                            "o aviso aos cuidadores quando uma dose não é confirmada (mesmo com o " +
+                            "celular desligado), o pedido de reposição à farmácia e o resumo ao " +
+                            "médico, se ativado em Configurações.",
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
