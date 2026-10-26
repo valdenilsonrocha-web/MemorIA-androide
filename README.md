@@ -246,3 +246,26 @@ web, incluindo pagamento/assinatura, receitas, assistente de voz e painel admin.
 ## Google Play Billing
 
 A versão 5.6 usa Google Play para assinaturas no Android. Consulte [GOOGLE_PLAY_BILLING.md](GOOGLE_PLAY_BILLING.md) para catálogo, configuração GCP/backend e testes internos.
+
+## Voz em tempo real com Gemini Live
+
+No Início ou em **Mais → Conversar com o MemorIA**, toque em **Iniciar conversa**
+e permita o microfone. O app transmite PCM16 a 16 kHz e reproduz a resposta a
+24 kHz, com silenciar, interrupção da fala e transcrição na tela.
+Sair da tela ou colocar o app em segundo plano encerra a captura.
+
+O Android usa o endpoint autenticado **/api/voice/live** do backend configurado
+em Configurações. Nenhuma chave Gemini fica no app. O backend do repositório
+MemorIA deve ser publicado com `GEMINI_API_KEY` e suporte a upgrade WebSocket no
+nginx; o procedimento está em `backend/docs/GEMINI-LIVE.md` naquele repositório.
+O modelo fixo é `gemini-3.8-live`.
+
+Na versão **5.10.0 (23)**, a assistente abre após o login e fala uma saudação.
+No primeiro uso, é preciso ativar a assistente e conceder microfone. Ela consulta
+os medicamentos e o histórico da conta, prepara cadastro com dados da receita
+informados pelo usuário e só salva depois do botão **Confirmar cadastro**.
+A triagem de interações usa o catálogo do MemorIA e informa suas limitações:
+ausência de alerta não garante segurança. A assistente também oferece atalhos
+para as telas do app. O aplicativo não grava áudio nem transcrição no celular. A partir da 5.10.1 o
+backend guarda o texto da conversa na conta (o app avisa antes e envia
+`X-MemorIA-Transcript-Consent: 2`); o áudio nunca é guardado.

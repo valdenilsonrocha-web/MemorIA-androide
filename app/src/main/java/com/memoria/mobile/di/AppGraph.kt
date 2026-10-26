@@ -26,6 +26,13 @@ class AppGraph(context: Context) {
 
     val reminderScheduler: ReminderScheduler = ReminderScheduler(app, repository)
 
+    fun voiceConnection(): com.memoria.mobile.voice.LiveVoiceConnection =
+        com.memoria.mobile.voice.MemoriaVoiceClient(
+            rootUrl = repository.currentBaseUrl(),
+            token = session.token,
+            onUnauthorized = { session.onUnauthorized?.invoke() },
+        )
+
     init {
         // Every path that changes a medication or the session re-arms the alarm
         // window here, in one place. Leaving it to each screen meant a forgotten

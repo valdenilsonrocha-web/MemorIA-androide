@@ -68,6 +68,13 @@ private val CLAUSES: List<Pair<String, String>> = listOf(
         "com a sua permissão, o app lê os contatos do celular só para listar quem tem WhatsApp " +
         "quando você toca em \"Importar dos contatos do WhatsApp\". A lista não sai do celular; " +
         "apenas o contato que você escolher é guardado.",
+    "Conversa por voz" to
+        "ao iniciar uma conversa, o áudio do microfone é enviado pelo backend do MemorIA ao Google Gemini " +
+        "para gerar respostas de voz e transcrições. O áudio não é guardado. O texto transcrito da conversa " +
+        "(o que você e a assistente disserem) fica guardado na sua conta no servidor do MemorIA, entra na " +
+        "exportação dos seus dados, pode ser lido pela equipe do MemorIA para suporte e segurança e é apagado " +
+        "quando você exclui a conta. O microfone é encerrado ao sair da tela ou ir para segundo plano. Os dados " +
+        "necessários dos medicamentos e histórico podem ser consultados pela assistente. Cadastros exigem sua confirmação na tela.",
     "Base legal" to
         "consentimento do titular e execução dos serviços solicitados no aplicativo.",
     "Compartilhamento" to

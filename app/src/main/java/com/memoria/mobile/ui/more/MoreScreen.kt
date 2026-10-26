@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Settings
@@ -130,6 +131,10 @@ private val ENTRIES = listOf(
     MoreEntry(
         Routes.PRESCRIPTIONS, "Minhas Receitas",
         MenuIcon.Picture(R.drawable.ic_menu_prescriptions, Color(0xFFF7FCFF)),
+    ),
+    MoreEntry(
+        Routes.VOICE, "Conversar com o MemorIA",
+        MenuIcon.Glyph(Icons.Filled.Mic, Color(0xFF0369A1), Brush.linearGradient(listOf(Color(0xFFEAF8FF), Color(0xFFEAF8FF)))),
     ),
     MoreEntry(
         Routes.SETTINGS, "Configurações",

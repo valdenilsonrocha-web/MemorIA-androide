@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -90,6 +91,7 @@ fun DashboardScreen(
     @Suppress("UNUSED_PARAMETER") onAdd: () -> Unit,
     onOpenMedication: (String) -> Unit,
     onOpenPlans: () -> Unit,
+    onOpenVoice: () -> Unit = {},
     /** "Editar" on a card: the web's `editMedication()` (the add form, pre-filled). */
     onEdit: ((String) -> Unit)? = null,
 ) {
@@ -160,6 +162,16 @@ fun DashboardScreen(
                         color = TextPrimary,
                     )
                     Text("Mantenha sua saúde em dia", fontSize = 20.sp, color = TextSecondary)
+                }
+            }
+
+            item {
+                Button(
+                    onClick = onOpenVoice,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Filled.Mic, contentDescription = null)
+                    Text("  Conversar com o MemorIA", modifier = Modifier.padding(vertical = 8.dp))
                 }
             }
 

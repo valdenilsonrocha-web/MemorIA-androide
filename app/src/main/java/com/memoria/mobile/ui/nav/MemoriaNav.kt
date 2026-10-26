@@ -184,8 +184,8 @@ private fun MainFlow(onLogout: () -> Unit) {
     // the user is in — a permission dialog over the login screen reads as noise
     // and gets dismissed. Arming the alarms rides along, so both a returning
     // session and a fresh login end up with reminders scheduled.
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == Routes.SETTINGS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !MemoriaNotifications.canPost(context)
         ) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -199,7 +199,14 @@ private fun MainFlow(onLogout: () -> Unit) {
     }
 
     // Medication reminders must always open big; ask for what that needs.
-    com.memoria.mobile.ui.common.BigAlertPermissionDialog()
+    var voiceOpenedForSession by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!voiceOpenedForSession) {
+            voiceOpenedForSession = true
+            nav.navigate(Routes.VOICE) { launchSingleTop = true }
+        }
+    }
+    if (currentRoute != Routes.VOICE) com.memoria.mobile.ui.common.BigAlertPermissionDialog()
 
     val goHome = { navigateToTab(nav, Routes.HOME) }
     val goMeds = { navigateToTab(nav, Routes.MEDS) }
@@ -264,6 +271,7 @@ private fun MainFlow(onLogout: () -> Unit) {
                         contentPadding = none,
                         // "Adicionar" on the web opens `addMedicationPage` — the tab.
                         onAdd = goMeds,
+                        onOpenVoice = { nav.navigate(Routes.VOICE) { launchSingleTop = true } },
                         onOpenMedication = { id -> nav.navigate(Routes.medDetails(id)) },
                         onOpenPlans = { nav.navigate(Routes.PLANS) },
                         onEdit = { id -> nav.navigate(Routes.medEdit(id)) },
@@ -335,6 +343,7 @@ private fun MainFlow(onLogout: () -> Unit) {
                 }
                 composable(Routes.PROFILE) { ProfileScreen(onBack = back) }
                 composable(Routes.PLANS) { PlansScreen(onBack = back) }
+                composable(Routes.VOICE) { com.memoria.mobile.ui.voice.VoiceScreen(onBack = back, onOpenPage = { route -> nav.navigate(route) { launchSingleTop = true } }) }
                 composable(Routes.HELP) { HelpScreen(onBack = back) }
                 composable(Routes.PRIVACY) {
                     PrivacyScreen(

@@ -33,6 +33,7 @@ object Routes {
     const val ADMIN = "admin"
     const val WHATSAPP = "whatsapp"
     const val SETTINGS = "settings"
+    const val VOICE = "voice"
 
     /** LGPD: reachable before login too, from the sign-up form. */
     const val PRIVACY = "privacy"
