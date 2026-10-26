@@ -1,0 +1,54 @@
+O MemorIA é um app de lembretes de medicamentos pensado para pessoas idosas e para quem cuida delas. Letras maiores, botões amplos e telas simples ajudam a acompanhar a rotina de remédios no dia a dia.
+
+LEMBRETES NO HORÁRIO
+• Alarme para cada dose, como notificação ou alerta em tela inteira
+• Botões "Tomei" e "Soneca" no próprio alerta, com tempo de soneca ajustável
+• Som do lembrete à escolha: Padrão, Suave ou Alto
+• Alarmes reprogramados automaticamente quando o celular é reiniciado
+• Guia de otimização para ajustar bateria, alarmes exatos e tela bloqueada
+
+MEDICAMENTOS ORGANIZADOS
+• Cadastro com nome, dose, frequência, horários, dias, estoque, duração do tratamento, uso contínuo e médico prescritor
+• Agenda do dia: marque cada dose como tomada, adiada ou não tomada
+• Aviso no celular quando o estoque de um remédio estiver acabando
+• Reposição: previsão de quando comprar cada medicamento com base no estoque atual
+
+ACOMPANHAMENTO
+• Tela inicial com as doses de hoje e estoque baixo em destaque
+• Histórico de doses e adesão dos últimos 30 dias
+• Calendário mensal com a situação de cada dia
+• Relatórios de adesão geral e por medicamento, histórico de tomadas e relatório de sinais vitais
+
+SAÚDE E CONSULTAS
+• Registro de pressão arterial, frequência cardíaca, saturação de oxigênio (SpO₂), glicose, temperatura, peso, altura e IMC
+• Registro de humor, sono e escala de cuidados
+• Meus Médicos: contatos de médicos, hospitais, clínicas, farmácias e contatos de emergência
+• Lembrete de consulta um dia antes e uma hora antes
+
+AVISOS PELO WHATSAPP
+• Cadastre o WhatsApp do paciente e de cuidadores (nome, telefone e parentesco)
+• O servidor do MemorIA envia o lembrete de cada dose ao WhatsApp do paciente e avisa os cuidadores quando uma dose não é confirmada dentro da tolerância, mesmo com o celular do paciente desligado
+• Plano gratuito: 1 cuidador. Premium: até 3 cuidadores
+
+PRIVACIDADE (LGPD)
+• Gerencie seu consentimento, leia a política de privacidade, exporte seus dados em JSON e solicite a exclusão da conta pelo próprio app
+
+PLANO GRATUITO
+O uso do MemorIA é gratuito, com até 2 medicamentos cadastrados, 1 contato de emergência e 1 cuidador, além dos lembretes, agenda, histórico, calendário, saúde, consultas e reposição descritos acima. Nos primeiros 7 dias após o primeiro acesso, os recursos Premium ficam liberados sem custo e sem necessidade de assinatura.
+
+MEMORIA PREMIUM (OPCIONAL)
+• Cadastro ilimitado de medicamentos
+• Relatórios avançados: gráfico de adesão dos últimos 30 dias, sequências e tendência semanal, exportar e compartilhar o relatório
+• Até 3 contatos de emergência e até 3 cuidadores
+• Alertas para contatos via WhatsApp e e-mail, incluindo aviso de estoque crítico ao cuidador e à farmácia fornecedora
+• Fotos das receitas médicas salvas no histórico, com sincronização em nuvem
+• Integração com Alexa e assistente de voz, configurada nas Configurações
+
+O Premium é uma assinatura opcional com renovação automática, vendida pela Google Play: R$ 14,90/mês ou R$ 154,80/ano. O pagamento é processado pela Google Play, que apresenta o valor final e as condições antes da confirmação. Você pode gerenciar ou cancelar a renovação na sua conta Google Play, em Pagamentos e assinaturas. Após cancelar, o acesso Premium continua até o fim do período já pago. Se reinstalar o app, use "Restaurar compras" na tela Planos, com a mesma conta MemorIA.
+
+IMPORTANTE
+• É necessário criar uma conta com CPF e senha
+• Alguns recursos dependem de conexão com a internet
+• O MemorIA é uma ferramenta auxiliar de organização e não substitui orientação médica
+
+Dúvidas e suporte: contato@brasmaster.com.br

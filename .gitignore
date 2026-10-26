@@ -23,3 +23,6 @@ ios/.swiftpm/
 
 # Kotlin build cache
 .kotlin/
+
+# Lista de testadores da Play Console (emails de pessoas): fica só no PC.
+/play-store/testadores.csv
