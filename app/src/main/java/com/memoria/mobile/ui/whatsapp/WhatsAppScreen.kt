@@ -128,7 +128,8 @@ fun WhatsAppScreen(contentPadding: PaddingValues, onBack: () -> Unit) {
             Text("Cuidadores (recebem o alerta de dose perdida)", style = MaterialTheme.typography.titleLarge)
             Text(
                 if (state.isPremium) "Plano Premium: até 3 cuidadores."
-                else "Plano gratuito: 1 cuidador. Premium permite até 3.",
+                else "Plano gratuito: os avisos pelo WhatsApp são do Premium. Assine para o cuidador " +
+                    "receber o alerta de dose perdida (até 3 cuidadores).",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

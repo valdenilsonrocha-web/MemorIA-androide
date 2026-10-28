@@ -38,7 +38,9 @@ import com.memoria.mobile.ui.auth.OnboardingScreen
 import com.memoria.mobile.ui.auth.RegisterScreen
 import com.memoria.mobile.ui.calendar.CalendarScreen
 import com.memoria.mobile.reminders.MemoriaNotifications
+import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.ui.common.LocalShowBackArrow
+import com.memoria.mobile.ui.common.PlanLimits
 import com.memoria.mobile.ui.common.MemoriaHeader
 import com.memoria.mobile.ui.common.TrialExpiryBanner
 import com.memoria.mobile.ui.common.SystemBarIcons
@@ -203,7 +205,9 @@ private fun MainFlow(onLogout: () -> Unit) {
     LaunchedEffect(Unit) {
         if (!voiceOpenedForSession) {
             voiceOpenedForSession = true
-            nav.navigate(Routes.VOICE) { launchSingleTop = true }
+            // A assistente de IA é do Premium (e dos 7 dias de teste): o plano grátis não a abre.
+            val user = (context.repository().me() as? ApiResult.Ok)?.value
+            if (PlanLimits.canUseAssistant(user)) nav.navigate(Routes.VOICE) { launchSingleTop = true }
         }
     }
     if (currentRoute != Routes.VOICE) com.memoria.mobile.ui.common.BigAlertPermissionDialog()

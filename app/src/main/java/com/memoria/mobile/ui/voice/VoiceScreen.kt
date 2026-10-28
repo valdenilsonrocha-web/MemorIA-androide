@@ -50,7 +50,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.memoria.mobile.MemoriaApp
+import com.memoria.mobile.data.ApiResult
 import com.memoria.mobile.ui.common.BackTopBar
+import com.memoria.mobile.ui.common.PlanLimits
+import com.memoria.mobile.ui.nav.Routes
 import com.memoria.mobile.ui.common.systemViewModel
 import com.memoria.mobile.voice.AndroidVoiceAudio
 
@@ -66,6 +69,8 @@ fun VoiceScreen(onBack: () -> Unit, onOpenPage: (String) -> Unit = {}) {
     var attemptedAutoStart by rememberSaveable { mutableStateOf(false) }
     var consentAccepted by rememberSaveable { mutableStateOf(false) }
     var showDisclosure by rememberSaveable { mutableStateOf(false) }
+    // null enquanto confere o plano; a assistente de IA é do Premium e dos 7 dias de teste.
+    var assistantAllowed by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val vm = systemViewModel { _, app, scheduler ->
         VoiceViewModel(AndroidVoiceAudio(app), onMedicationSaved = {
             com.memoria.mobile.reminders.DoseEvents.notifyChanged()
@@ -87,8 +92,12 @@ fun VoiceScreen(onBack: () -> Unit, onOpenPage: (String) -> Unit = {}) {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             if (!attemptedAutoStart) {
                 attemptedAutoStart = true
-                consentAccepted = repo.local.uiSetting(VOICE_CONSENT_KEY) == "1"
-                beginVoice()
+                val allowed = PlanLimits.canUseAssistant((repo.me() as? ApiResult.Ok)?.value)
+                assistantAllowed = allowed
+                if (allowed) {
+                    consentAccepted = repo.local.uiSetting(VOICE_CONSENT_KEY) == "1"
+                    beginVoice()
+                }
             }
         }
     }
@@ -117,6 +126,22 @@ fun VoiceScreen(onBack: () -> Unit, onOpenPage: (String) -> Unit = {}) {
             owner.lifecycle.removeObserver(observer)
             vm.stop()
         }
+    }
+
+    if (assistantAllowed == false) {
+        Scaffold(topBar = { BackTopBar("Conversar com o MemorIA", onBack) }) { padding ->
+            Column(
+                Modifier.fillMaxSize().padding(padding).padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Assistente de IA", style = MaterialTheme.typography.headlineMedium)
+                Text("⭐ A assistente de IA é um recurso Premium. Tire dúvidas sobre remédios e horários " +
+                    "conversando em linguagem simples.", style = MaterialTheme.typography.bodyLarge)
+                Button(onClick = { onOpenPage(Routes.PLANS) }, modifier = Modifier.fillMaxWidth()) { Text("Ver planos") }
+                OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Voltar") }
+            }
+        }
+        return
     }
 
     Scaffold(topBar = { BackTopBar("Conversar com o MemorIA", onBack) }) { padding ->

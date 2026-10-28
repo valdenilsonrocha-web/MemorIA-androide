@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.LockReset
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
@@ -424,104 +423,6 @@ fun SettingsScreen(
                 }
             }
 
-            // ---- Assistente de Voz (Alexa) - Premium ----
-            SectionCard(titleColor = TextPrimary, title = "Assistente de Voz (Alexa) - Premium", icon = Icons.Filled.Mic) {
-                if (!state.isPremium) {
-                    // `.voice-assistant-locked`: #f9fafb panel, 2px dashed #d1d5db border, #6b7280 text.
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
-                            .dashedBorder(Color(0xFFD1D5DB), 12.dp)
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            PremiumIcon()
-                            Text(
-                                "  Recurso disponível apenas no Premium.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = Color(0xFF6B7280),
-                            )
-                        }
-                        OutlinedButton(onClick = onOpenPlans, modifier = Modifier.fillMaxWidth()) {
-                            PremiumIcon()
-                            Text("  Ver planos")
-                        }
-                    }
-                } else {
-                    Text("Ativar integração de voz", style = MaterialTheme.typography.labelLarge)
-                    StatusSwitch(
-                        checked = state.voiceEnabled,
-                        enabled = !state.voiceSaving && !state.voiceLoading,
-                        onLabel = "Ligado",
-                        offLabel = "Desligado",
-                        onCheckedChange = vm::onVoiceEnabled,
-                    )
-
-                    Text("Provedor", style = MaterialTheme.typography.labelLarge)
-                    SettingsSelect(
-                        options = VOICE_PROVIDERS,
-                        selected = state.voiceProvider,
-                        onSelect = vm::onVoiceProvider,
-                        // A web-only provider saved elsewhere ("browser-tts") shows an
-                        // empty select instead of pretending to be "Alexa".
-                        blankWhenUnmatched = true,
-                    )
-
-                    OutlinedTextField(
-                        value = state.voiceDeviceName,
-                        onValueChange = vm::onVoiceDeviceName,
-                        label = { Text("Nome do dispositivo") },
-                        placeholder = { Text("Ex: Echo Sala") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = state.voiceWebhookUrl,
-                        onValueChange = vm::onVoiceWebhookUrl,
-                        label = { Text("URL do webhook") },
-                        placeholder = { Text("https://seu-webhook.exemplo.com/alexa") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Hint("A URL do webhook é necessária para Alexa, Google Assistant e Webhook personalizado.")
-
-                    Button(
-                        onClick = vm::saveVoiceAssistant,
-                        enabled = !state.voiceSaving,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (state.voiceSaving) {
-                            CircularProgressIndicator(
-                                Modifier.padding(end = 8.dp).size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp,
-                            )
-                        } else {
-                            Icon(Icons.Filled.Save, contentDescription = null)
-                        }
-                        Text("  Salvar Alexa")
-                    }
-
-                    Hint(
-                        if (state.voiceSavedEnabled) {
-                            // "browser-tts" can only have been saved on the web version.
-                            val provider = if (state.voiceSavedProvider == "browser-tts") {
-                                "Voz do navegador (só na versão web)"
-                            } else {
-                                VOICE_PROVIDERS.firstOrNull { it.first == state.voiceSavedProvider }?.second
-                                    ?: state.voiceSavedProvider
-                            }
-                            "✅ Integração ativa — $provider"
-                        } else {
-                            "Integração de voz inativa no momento."
-                        },
-                    )
-                }
-            }
-
             // ---- Sincronização Online ----
             SectionCard(titleColor = TextPrimary, title = "Sincronização Online", icon = Icons.Filled.Cloud) {
                 // `.sync-status`: --bg-secondary box; "Conectado" is --secondary-color bold,
@@ -771,17 +672,6 @@ fun SettingsScreen(
         )
     }
 }
-
-/**
- * The providers that work from the phone, with the web select's labels. The
- * backend also accepts `browser-tts`, but that one is spoken by the web page in
- * the browser — nothing on Android plays it — so it is not offered here.
- */
-private val VOICE_PROVIDERS = listOf(
-    "alexa" to "Alexa",
-    "google" to "Google Assistant",
-    "webhook" to "Webhook personalizado",
-)
 
 /** The web's `formatLastSync`. */
 private fun formatLastSync(millis: Long?): String {

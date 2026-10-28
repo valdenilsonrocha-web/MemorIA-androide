@@ -57,7 +57,13 @@ fun PlansScreen(onBack: () -> Unit) {
             PageTitle("Planos", iconRes = R.drawable.ic_premium)
             Text("MemorIA Premium", style = MaterialTheme.typography.headlineSmall)
             Text("Desbloqueie os recursos Premium com uma assinatura pela Google Play.")
-            PREMIUM_FEATURES.forEach { (feature, _) -> Text("✓ " + feature) }
+            PREMIUM_FEATURES.forEachIndexed { i, benefit ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("${i + 1}. ${benefit.title}" + if (benefit.isNew) "  · NOVO" else "",
+                        style = MaterialTheme.typography.titleSmall)
+                    Text(benefit.description, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             if (state.loading) CircularProgressIndicator()
             val active = state.user?.subscriptionStatus in setOf("active", "authorized", "trialing", "pending", "paused")
             if (!active) {

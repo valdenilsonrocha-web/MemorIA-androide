@@ -403,45 +403,6 @@ data class ConsultationPayload(
     val notes: String = "",
 )
 
-// ---- Voice assistant (Alexa / Echo Dot) ----------------------------------
-
-/**
- * `GET/PUT /api/integrations/voice-assistant/config`.
- *
- * The webhook is what actually reaches the speaker: the MemorIA server posts the
- * reminder to it, and whatever sits behind it (an Alexa skill, an IFTTT hook, a
- * Home Assistant endpoint) speaks it on the Echo Dot. So `webhookUrl` is
- * mandatory for every provider except `browser-tts`, which speaks locally and
- * has nothing to post to — the server rejects the save otherwise.
- */
-@JsonClass(generateAdapter = true)
-data class VoiceAssistantConfig(
-    val enabled: Boolean = false,
-    /** alexa | google | webhook | browser-tts */
-    val provider: String = "alexa",
-    val deviceName: String = "",
-    val webhookUrl: String = "",
-)
-
-@JsonClass(generateAdapter = true)
-data class VoiceAssistantConfigData(
-    val config: VoiceAssistantConfig? = null,
-)
-
-@JsonClass(generateAdapter = true)
-data class VoiceAssistantDispatchRequest(
-    val message: String = "",
-    val medicationName: String = "",
-    val scheduleTime: String = "",
-)
-
-@JsonClass(generateAdapter = true)
-data class VoiceAssistantDispatchData(
-    val dispatched: Boolean = false,
-    /** "browser-tts" when the server only prepared the phrase instead of posting it. */
-    val mode: String? = null,
-)
-
 // ---- Notification health (POST /notifications/device-report) -------------
 
 /**

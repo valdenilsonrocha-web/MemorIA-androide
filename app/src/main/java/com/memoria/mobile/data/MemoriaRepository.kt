@@ -14,9 +14,6 @@ import com.memoria.mobile.data.remote.DeviceReportRequest
 import com.memoria.mobile.data.remote.ForgotPasswordRequest
 import com.memoria.mobile.data.remote.ResetPasswordRequest
 import com.memoria.mobile.data.remote.VitalSignsPayload
-import com.memoria.mobile.data.remote.VoiceAssistantConfig
-import com.memoria.mobile.data.remote.VoiceAssistantDispatchData
-import com.memoria.mobile.data.remote.VoiceAssistantDispatchRequest
 import com.memoria.mobile.data.remote.Envelope
 import com.memoria.mobile.data.remote.HistoryEntry
 import com.memoria.mobile.data.remote.HistoryRequest
@@ -385,41 +382,6 @@ class MemoriaRepository(
             )
         )
         envelopeValue(r) { it.user }
-    }
-
-    // ---- Assistente de voz (Alexa / Echo Dot) ----
-
-    suspend fun voiceAssistantConfig(): ApiResult<VoiceAssistantConfig> = call {
-        val r = api().voiceAssistantConfig()
-        envelopeValue(r) { it.config }
-    }
-
-    suspend fun setVoiceAssistantConfig(
-        config: VoiceAssistantConfig,
-    ): ApiResult<VoiceAssistantConfig> = call {
-        val r = api().updateVoiceAssistantConfig(config)
-        envelopeValue(r) { it.config }
-    }
-
-    /**
-     * Sends one phrase through the configured assistant so the user can hear the
-     * Echo Dot speak before trusting it with a real dose. `browser-tts` answers
-     * `dispatched = false`, which the screen reports rather than treating as a
-     * failure — there is no speaker for the server to reach in that mode.
-     */
-    suspend fun dispatchVoiceAssistant(
-        message: String,
-        medicationName: String = "",
-        scheduleTime: String = "",
-    ): ApiResult<VoiceAssistantDispatchData> = call {
-        val r = api().dispatchVoiceAssistant(
-            VoiceAssistantDispatchRequest(
-                message = message.trim(),
-                medicationName = medicationName.trim(),
-                scheduleTime = scheduleTime.trim(),
-            )
-        )
-        envelopeValue(r) { it }
     }
 
     suspend fun me(): ApiResult<User> = call {

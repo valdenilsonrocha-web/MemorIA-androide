@@ -235,13 +235,12 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
         )
         _state.value = s.copy(saving = true, error = null)
         viewModelScope.launch {
-            // The free plan caps active medications, exactly as the website does.
-            // The server does NOT enforce this one, so skipping the check here
-            // meant the phone handed out for free what the site charges for.
-            if (editingId == null && !allowedToAdd()) {
+            // The free plan rule, exactly as the website and the server apply it; checked
+            // here first so the person sees why before the server refuses.
+            if (!allowedToSave(times.size)) {
                 _state.update { it.copy(
                     saving = false,
-                    error = PLAN_LIMIT_MESSAGE,
+                    error = PlanLimits.medicationLimitMessage(),
                     blockedByPlan = true,
                 ) }
                 return@launch
@@ -297,17 +296,13 @@ class MedicationEditViewModel(private val repo: MemoriaRepository) : ViewModel()
      * cached list — two devices adding at the same time would otherwise both
      * believe there was room.
      */
-    private suspend fun allowedToAdd(): Boolean {
+    private suspend fun allowedToSave(nextTimes: Int): Boolean {
         val user = (repo.me() as? ApiResult.Ok)?.value
-        val active = (repo.medications() as? ApiResult.Ok)?.value?.count { it.active } ?: 0
-        return PlanLimits.canAddMedication(user, active)
+        val meds = (repo.medications() as? ApiResult.Ok)?.value.orEmpty()
+        val previous = meds.firstOrNull { it.id != null && it.id == editingId && it.active }
+        val others = meds.filter { it.active && (editingId == null || it.id != editingId) }.map { it.times.size }
+        return PlanLimits.allowsMedication(user, others, previous?.times?.size, nextTimes)
     }
 
     fun clearPlanBlock() { _state.update { it.copy(blockedByPlan = false, error = null) } }
-
-    private companion object {
-        /** The web's toast in `handleAddMedication()`, word for word. */
-        const val PLAN_LIMIT_MESSAGE =
-            "⭐ No plano gratuito você pode cadastrar até 2 medicamentos. Ative o Premium para medicamentos ilimitados."
-    }
 }

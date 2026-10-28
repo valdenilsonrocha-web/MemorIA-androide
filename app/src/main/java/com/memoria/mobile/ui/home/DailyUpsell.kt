@@ -46,7 +46,7 @@ import java.time.LocalDate
 data class UpsellMessage(val icon: String, val title: String, val desc: String, val features: List<String>)
 
 /**
- * One message per [com.memoria.mobile.ui.plans.PREMIUM_FEATURES] entry, same order, titled with the same
+ * Each message sells one [com.memoria.mobile.ui.plans.PREMIUM_FEATURES] entry, with the same title
  * text: the card may only sell what Premium really unlocks. The web's 14-message
  * rotation (`showDailyUpsellMessage()`) also promised removal of ads, family
  * profiles, backup across devices and other things the app does not have.
@@ -54,8 +54,8 @@ data class UpsellMessage(val icon: String, val title: String, val desc: String, 
 val DAILY_UPSELL_MESSAGES: List<UpsellMessage> = listOf(
     UpsellMessage(
         "💊", "Cadastro ilimitado de medicações",
-        "No plano gratuito você pode cadastrar até ${PlanLimits.FREE_MEDICATIONS} medicamentos. Com o Premium, cadastre quantos precisar.",
-        listOf("Sem limite de medicamentos", "Plano gratuito: ${PlanLimits.FREE_MEDICATIONS} medicamentos"),
+        "No plano gratuito você pode ter ${PlanLimits.FREE_MEDICATION_RULE}. Com o Premium, cadastre quantos precisar.",
+        listOf("Sem limite de medicamentos", "Vários horários por remédio"),
     ),
     UpsellMessage(
         "📊", "Relatórios avançados",
@@ -83,9 +83,14 @@ val DAILY_UPSELL_MESSAGES: List<UpsellMessage> = listOf(
         listOf("Receitas na nuvem", "Junto com a sua conta"),
     ),
     UpsellMessage(
-        "🎙️", "Integração com Alexa e assistente de voz nas Configurações",
-        "Ative nas Configurações a integração com a Alexa, o Google Assistant ou um webhook e receba o lembrete de cada dose também pelo assistente de voz.",
-        listOf("Alexa", "Google Assistant", "Lembrete por voz"),
+        "💊", "Interação medicamentosa",
+        "Saiba se dois remédios podem ser tomados juntos antes de misturar.",
+        listOf("Alerta de combinações", "Catálogo verificado", "Confirme com o médico"),
+    ),
+    UpsellMessage(
+        "🎙️", "Assistente de IA",
+        "Tire dúvidas sobre remédios e horários conversando em linguagem simples.",
+        listOf("Conversa por voz", "Linguagem simples", "Ajuda no cadastro"),
     ),
 )
 

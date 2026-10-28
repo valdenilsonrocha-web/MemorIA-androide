@@ -17,7 +17,6 @@ import com.memoria.mobile.data.remote.ConsultationPayload
 import com.memoria.mobile.data.remote.ProfileUpdateRequest
 import com.memoria.mobile.data.remote.User
 import com.memoria.mobile.data.remote.VitalSignsPayload
-import com.memoria.mobile.data.remote.VoiceAssistantConfig
 import com.memoria.mobile.reminders.MemoriaNotifications
 import com.memoria.mobile.reminders.ReminderScheduler
 import com.memoria.mobile.reminders.ReminderSound
@@ -71,16 +70,6 @@ data class SettingsUiState(
     // Privacidade e LGPD — o interruptor só vale depois de "Salvar Consentimento LGPD".
     val consentToggle: Boolean = false,
     val consentSaving: Boolean = false,
-    // Assistente de voz (Alexa / Echo Dot)
-    val voiceLoading: Boolean = false,
-    val voiceSaving: Boolean = false,
-    val voiceEnabled: Boolean = false,
-    /** What was last saved — drives the "Integração ativa" line, as on the web. */
-    val voiceSavedEnabled: Boolean = false,
-    val voiceProvider: String = "alexa",
-    val voiceSavedProvider: String = "alexa",
-    val voiceDeviceName: String = "",
-    val voiceWebhookUrl: String = "",
     // Sincronização Online
     val syncing: Boolean = false,
     val lastSyncAtMillis: Long? = null,
@@ -159,7 +148,6 @@ class SettingsViewModel(
             consentToggle = user.consentDate != null,
             lastSyncAtMillis = if (markSynced) now else _state.value.lastSyncAtMillis,
         ) }
-        if (user.isPremium) loadVoiceAssistant()
     }
 
     /** Called when the screen comes back from the system permission dialog. */
@@ -404,68 +392,6 @@ class SettingsViewModel(
                     error = "❌ Erro ao atualizar consentimento LGPD: ${r.message}",
                 ) }
             }
-        }
-    }
-
-    // ---- Assistente de voz (Alexa / Echo Dot) ----
-
-    private fun loadVoiceAssistant() {
-        _state.update { it.copy(voiceLoading = true) }
-        viewModelScope.launch {
-            when (val r = repo.voiceAssistantConfig()) {
-                is ApiResult.Ok -> _state.update { it.copy(
-                    voiceLoading = false,
-                    voiceEnabled = r.value.enabled,
-                    voiceSavedEnabled = r.value.enabled,
-                    voiceProvider = r.value.provider,
-                    voiceSavedProvider = r.value.provider,
-                    voiceDeviceName = r.value.deviceName,
-                    voiceWebhookUrl = r.value.webhookUrl,
-                ) }
-                // Silent on failure: an account that never set the integration up is
-                // the normal case, and a banner here would read as something broken.
-                is ApiResult.Err -> _state.update { it.copy(voiceLoading = false) }
-            }
-        }
-    }
-
-    fun onVoiceEnabled(enabled: Boolean) { _state.update { it.copy(voiceEnabled = enabled) } }
-    fun onVoiceProvider(provider: String) { _state.update { it.copy(voiceProvider = provider) } }
-    fun onVoiceDeviceName(name: String) { _state.update { it.copy(voiceDeviceName = name) } }
-    fun onVoiceWebhookUrl(url: String) { _state.update { it.copy(voiceWebhookUrl = url) } }
-
-    /**
-     * The web's `saveVoiceAssistantSettings()`: the status line and the toast
-     * update at once; the `PUT /api/integrations/voice-assistant/config` runs
-     * behind them and a failure is swallowed (`.catch(() => {})`).
-     */
-    fun saveVoiceAssistant() {
-        val s = _state.value
-        if (!s.isPremium) {
-            _state.value = s.copy(error = "⭐ Recurso premium: ative o Premium para configurar a Alexa.")
-            return
-        }
-        val deviceName = s.voiceDeviceName.trim()
-        val webhookUrl = s.voiceWebhookUrl.trim()
-        if (s.voiceEnabled && s.voiceProvider != "browser-tts" && webhookUrl.isBlank()) {
-            _state.value = s.copy(error = "❌ Informe a URL do Webhook para usar este assistente")
-            return
-        }
-        _state.value = s.copy(
-            voiceSaving = true,
-            voiceSavedEnabled = s.voiceEnabled,
-            voiceSavedProvider = s.voiceProvider,
-            message = "✅ Configuração de voz salva!",
-        )
-        viewModelScope.launch {
-            val config = VoiceAssistantConfig(
-                enabled = s.voiceEnabled,
-                provider = s.voiceProvider,
-                deviceName = deviceName,
-                webhookUrl = webhookUrl,
-            )
-            repo.setVoiceAssistantConfig(config)
-            _state.update { it.copy(voiceSaving = false) }
         }
     }
 

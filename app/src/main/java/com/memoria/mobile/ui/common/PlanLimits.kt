@@ -3,12 +3,9 @@ package com.memoria.mobile.ui.common
 import com.memoria.mobile.data.remote.User
 
 /**
- * What the free plan allows, mirroring `getPlanLimits()` in the web app:
- * `{ maxContacts: 1, maxMedications: 2 }` free, `{ maxContacts: 3, maxMedications: Infinity }` Premium.
- *
- * The backend enforces the caregiver cap but NOT the medication one, so without
- * this the phone quietly handed out unlimited medications and prescription
- * photos that the website charges for.
+ * What the free plan allows, mirroring the web app and `services/freePlan.js` on the server:
+ * 1 medication with several times, or 2 medications with 1 time each; 1 emergency contact;
+ * no prescription photos, AI assistant or interaction check. The server refuses the same.
  *
  * The messages are the web's `showToast` strings, emoji included, so they can go
  * straight to [MemoriaToast.show].
@@ -16,14 +13,13 @@ import com.memoria.mobile.data.remote.User
 object PlanLimits {
 
     /**
-     * Interruptor temporário: com isto ligado, uma conta gratuita tem os mesmos
-     * recursos que o Premium (medicamentos, contatos, receitas, relatórios,
-     * farmácia, Alexa). Voltar a `false` restaura os limites do plano.
+     * Interruptor de emergência: `true` dá a toda conta gratuita os recursos do Premium.
+     * Desligado desde 28/10/2026, como no servidor e no site.
      */
-    const val FREE_HAS_ALL_FEATURES = true
+    const val FREE_HAS_ALL_FEATURES = false
 
-    /** Contas gratuitas (após o período de teste de 7 dias) guardam 2 medicamentos; Premium/Trial é ilimitado. */
-    const val FREE_MEDICATIONS = 2
+    /** A regra de medicamentos do plano gratuito, para os textos do app. */
+    const val FREE_MEDICATION_RULE = "1 medicamento com vários horários ou 2 medicamentos com 1 horário cada"
 
     /** Contatos de emergência: 1 no gratuito, 3 no Premium. */
     const val FREE_CONTACTS = 1
@@ -35,14 +31,25 @@ object PlanLimits {
     fun User.withTemporaryFullAccess(): User =
         if (FREE_HAS_ALL_FEATURES) copy(isPremium = true, trialExpired = false) else this
 
-    fun maxMedications(user: User?): Int =
-        if (hasFullAccess(user)) Int.MAX_VALUE else FREE_MEDICATIONS
-
     fun maxContacts(user: User?): Int =
         if (hasFullAccess(user)) PREMIUM_CONTACTS else FREE_CONTACTS
 
-    fun canAddMedication(user: User?, activeCount: Int): Boolean =
-        activeCount < maxMedications(user)
+    /** Horários por dia de cada medicamento ativo. */
+    fun fitsFreePlan(timesPerMedication: List<Int>): Boolean =
+        timesPerMedication.size <= 1 ||
+            (timesPerMedication.size == 2 && timesPerMedication.all { it <= 1 })
+
+    /**
+     * Pode gravar um medicamento com [nextTimes] horários? [others] são os horários dos outros
+     * medicamentos ativos; [previousTimes], os deste antes da edição (null se é novo ou estava
+     * inativo). Quem já passou do limite pode editar e reduzir, mas não acrescentar.
+     */
+    fun allowsMedication(user: User?, others: List<Int>, previousTimes: Int?, nextTimes: Int): Boolean =
+        hasFullAccess(user) || fitsFreePlan(others + nextTimes) ||
+            (previousTimes != null && nextTimes <= previousTimes)
+
+    /** A assistente de IA (que também faz a triagem de interações) é do Premium e dos 7 dias de teste. */
+    fun canUseAssistant(user: User?): Boolean = hasFullAccess(user)
 
     /** Fotos de receitas liberadas durante o período de 7 dias ou com assinatura paga ativa. */
     fun canStorePrescriptions(user: User?): Boolean = hasFullAccess(user)
@@ -54,8 +61,8 @@ object PlanLimits {
     /** app.js `handleMedicationSubmit`. */
     @Suppress("UNUSED_PARAMETER")
     fun medicationLimitMessage(user: User? = null): String =
-        "⭐ No plano gratuito você pode cadastrar até $FREE_MEDICATIONS medicamentos. " +
-            "Ative o Premium para medicamentos ilimitados."
+        "⭐ No plano gratuito você pode ter $FREE_MEDICATION_RULE. " +
+            "Ative o Premium para cadastrar sem limite."
 
     /** app.js `handlePrescriptionUpload` / the prescriptions page. */
     @Suppress("UNUSED_PARAMETER")

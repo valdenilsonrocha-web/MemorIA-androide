@@ -111,8 +111,8 @@ private val FAQ = listOf(
         "Vá em Configurações e clique em **\"Exportar Dados\"**. Isso criará um arquivo com " +
         "todas as suas informações.",
     "O aplicativo é gratuito?" to
-        "O MemorIA tem um plano gratuito, que permite cadastrar até ${PlanLimits.FREE_MEDICATIONS} " +
-        "medicamentos e ${PlanLimits.FREE_CONTACTS} contato de emergência. Ao entrar pela primeira " +
+        "O MemorIA tem um plano gratuito, que permite cadastrar ${PlanLimits.FREE_MEDICATION_RULE} " +
+        "e ${PlanLimits.FREE_CONTACTS} contato de emergência. Ao entrar pela primeira " +
         "vez, você tem 7 dias de acesso Premium sem custo; quando eles acabam, nada é cobrado e a " +
         "conta continua no plano gratuito. O **MemorIA Premium** é uma assinatura opcional, com " +
         "renovação automática, paga pela Google Play — os preços aparecem na tela **Planos**. Você " +
